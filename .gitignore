@@ -32,3 +32,4 @@ dist-ssr
 /.parcel-cache/
 /.storybook-out
 /public/
+.env
