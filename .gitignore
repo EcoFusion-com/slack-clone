@@ -23,12 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 # Ignore frontend build artifacts only
-Frontend/node_modules/
-Frontend/dist/
-Frontend/build/
-Frontend/.cache/
-Frontend/.next
-Frontend/.nuxt
-Frontend/.parcel-cache/
-Frontend/.storybook-out
-Frontend/public/    # ⚠️ if you want to keep static assets tracked, remove this line
+/node_modules/
+/dist/
+/build/
+/.cache/
+/.next
+/.nuxt
+/.parcel-cache/
+/.storybook-out
+/public/
