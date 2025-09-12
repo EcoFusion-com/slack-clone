@@ -1,0 +1,39 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: NodeTool@0
+    displayName: 'Install Node.js 22.x (LTS)'
+    inputs:
+      versionSpec: '22.x'
+
+  - task: Npm@1
+    displayName: 'npm install'
+    inputs:
+      command: 'install'
+      verbose: false
+
+  - task: Npm@1
+    displayName: 'Build React (Vite)'
+    inputs:
+      command: custom
+      customCommand: 'run build -- --mode production'
+      verbose: false
+
+  # Copy built files (Vite outputs to `dist`)
+  - task: CopyFiles@2
+    displayName: 'Copy Files to Artifact Staging Directory'
+    inputs:
+      SourceFolder: 'dist'
+      Contents: '**'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact: drop'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'

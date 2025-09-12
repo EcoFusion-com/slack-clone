@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Slack Clone Design System - Production Ready
+All colors MUST be HSL for consistent theming.
+*/
+
+@layer base {
+  :root {
+    /* Core Slack Brand Colors */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 15%;
+
+    /* Slack Purple Primary */
+    --primary: 283 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 283 100% 55%;
+    --primary-active: 283 100% 50%;
+
+    /* Slack Green Accent */
+    --accent: 158 64% 52%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 158 64% 47%;
+
+    /* Slack Sidebar Colors */
+    --sidebar-background: 219 28% 12%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-accent: 283 100% 60%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-muted: 219 15% 25%;
+    --sidebar-border: 219 15% 20%;
+    --sidebar-hover: 219 15% 18%;
+
+    /* Channel/Message Colors */
+    --channel-hover: 219 15% 96%;
+    --channel-active: 283 100% 97%;
+    --channel-unread: 283 100% 60%;
+
+    /* Message Colors */
+    --message-background: 0 0% 100%;
+    --message-hover: 0 0% 98%;
+    --message-border: 0 0% 93%;
+    --message-own: 158 64% 97%;
+
+    /* Status Colors */
+    --success: 158 64% 52%;
+    --warning: 43 96% 56%;
+    --destructive: 0 84% 60%;
+    --info: 217 91% 60%;
+
+    /* UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 283 100% 60%;
+
+    /* Interactive States */
+    --online: 142 71% 45%;
+    --away: 43 96% 56%;
+    --busy: 0 84% 60%;
+    --offline: 0 0% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(283 100% 60%), hsl(283 100% 70%));
+    --gradient-accent: linear-gradient(135deg, hsl(158 64% 52%), hsl(158 64% 62%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(219 28% 12%), hsl(219 28% 10%));
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1);
+    --shadow-primary: 0 4px 14px 0 hsl(283 100% 60% / 0.25);
+
+    /* Animation Timing */
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 6px;
+  }
+
+  .dark {
+    /* Dark Mode Overrides */
+    --background: 219 28% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 219 28% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 219 28% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --secondary: 219 28% 15%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 219 28% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --channel-hover: 219 28% 15%;
+    --channel-active: 283 100% 15%;
+
+    --message-background: 219 28% 10%;
+    --message-hover: 219 28% 12%;
+    --message-border: 219 28% 18%;
+    --message-own: 158 64% 12%;
+
+    --border: 219 28% 18%;
+    --input: 219 28% 18%;
+
+    --gradient-sidebar: linear-gradient(180deg, hsl(219 28% 12%), hsl(219 28% 8%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
