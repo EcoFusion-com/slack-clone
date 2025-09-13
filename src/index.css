@@ -124,5 +124,10 @@ All colors MUST be HSL for consistent theming.
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+  }
+
+  html, body, #root {
+    height: 100%;
   }
 }

@@ -404,8 +404,8 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }
 
   return (
-    <div className="h-full bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-full bg-background overflow-auto">
+      <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
         <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
