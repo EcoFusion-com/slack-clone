@@ -4,7 +4,15 @@
 
 import { useAuth } from "@clerk/clerk-react";
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || `ws://${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001').replace(/^https?:\/\//, '')}/ws`;
+// const WS_BASE_URL = import.meta.env.VITE_WS_URL || `ws://${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001').replace(/^https?:\/\//, '')}/ws`;
+const getWebSocketUrl = () => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = backendUrl.replace(/^https?:\/\//, '');
+  return `${wsProtocol}//${host}/ws`;
+};
+
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || getWebSocketUrl()
 
 export interface WebSocketMessage {
   type: string;
