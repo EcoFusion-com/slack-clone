@@ -240,7 +240,8 @@ Create a `.env` file in the frontend root:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000/ws
+VITE_BACKEND_URL=http://localhost:3001
+# VITE_WS_URL is optional - will auto-detect protocol (ws:// for local, wss:// for production)
 VITE_APP_NAME=Slack Clone
 ```
 
@@ -290,7 +291,7 @@ npm run build
 
 ### Environment Setup
 - Set `VITE_API_BASE_URL` to your production API URL
-- Set `VITE_WS_URL` to your production WebSocket URL
+- Set `VITE_BACKEND_URL` to your production backend URL (WebSocket protocol will auto-detect)
 - Configure CORS on backend to allow frontend domain
 
 ### Static Hosting

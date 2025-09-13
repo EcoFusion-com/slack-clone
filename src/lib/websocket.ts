@@ -2,17 +2,11 @@
  * WebSocket client for real-time communication with Clerk authentication
  */
 
-import { useAuth } from "@clerk/clerk-react";
+// Note: Clerk import is optional and will be available when @clerk/clerk-react is installed
+// import { useAuth } from "@clerk/clerk-react";
+import { getWebSocketUrlFromEnv } from "./websocket-utils";
 
-// const WS_BASE_URL = import.meta.env.VITE_WS_URL || `ws://${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001').replace(/^https?:\/\//, '')}/ws`;
-const getWebSocketUrl = () => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = backendUrl.replace(/^https?:\/\//, '');
-  return `${wsProtocol}//${host}/ws`;
-};
-
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || getWebSocketUrl()
+const WS_BASE_URL = getWebSocketUrlFromEnv();
 
 export interface WebSocketMessage {
   type: string;
@@ -280,10 +274,14 @@ export const wsClient = new WebSocketClient();
 
 // Hook for using WebSocket client with Clerk authentication
 export function useWebSocketClient() {
-  const { getToken } = useAuth();
+  // Note: This requires @clerk/clerk-react to be installed
+  // Uncomment the following lines when Clerk is properly integrated:
+  // const { getToken } = useAuth();
+  // wsClient.setAuth(getToken);
   
-  // Set the authentication method
-  wsClient.setAuth(getToken);
+  // For now, return client without authentication
+  // This will work for development but requires proper Clerk integration for production
+  console.warn('WebSocket client initialized without authentication. Install @clerk/clerk-react for full functionality.');
   
   return wsClient;
 }

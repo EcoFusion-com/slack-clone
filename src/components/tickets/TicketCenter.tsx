@@ -19,7 +19,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -142,15 +141,43 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
       loadTickets()
     }
 
+    const handleTicketStatusChange = (data: any) => {
+      console.log('Ticket status change received:', data)
+      
+      // Update the specific ticket in the list
+      setTickets(prevTickets => 
+        prevTickets.map(ticket => 
+          ticket.id === data.data.ticket_id 
+            ? { ...ticket, status: data.data.action === 'acknowledge' ? 'in_progress' : data.data.action }
+            : ticket
+        )
+      )
+      
+      // Show toast notification
+      const actionLabels = {
+        acknowledge: 'acknowledged',
+        submit: 'submitted',
+        approve: 'approved',
+        reject: 'rejected'
+      }
+      
+      toast({
+        title: `Ticket ${actionLabels[data.data.action as keyof typeof actionLabels] || data.data.action}`,
+        description: data.data.comment || `Ticket has been ${actionLabels[data.data.action as keyof typeof actionLabels] || data.data.action}`,
+      })
+    }
+
     // Add event listeners
     wsClient.on('ticket_created', handleTicketCreated)
     wsClient.on('ticket_updated', handleTicketUpdated)
+    wsClient.on('ticket_status_change', handleTicketStatusChange)
     wsClient.on('reconnect', handleWebSocketReconnect)
 
     // Cleanup
     return () => {
       wsClient.off('ticket_created', handleTicketCreated)
       wsClient.off('ticket_updated', handleTicketUpdated)
+      wsClient.off('ticket_status_change', handleTicketStatusChange)
       wsClient.off('reconnect', handleWebSocketReconnect)
     }
   }, [wsClient.isConnected, toast])
@@ -504,13 +531,13 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                         <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
-                        <Badge className={getStatusColor(ticket.status)}>
+                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
                               {getStatusIcon(ticket.status)}
                               <span className="ml-1 capitalize">{ticket.status.replace('_', ' ')}</span>
-                            </Badge>
-                        <Badge className={getPriorityColor(ticket.priority)}>
+                            </div>
+                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
                               {ticket.priority.toUpperCase()}
-                            </Badge>
+                            </div>
                           </div>
                       <p className="text-muted-foreground mb-3 line-clamp-2">
                         {ticket.description}
