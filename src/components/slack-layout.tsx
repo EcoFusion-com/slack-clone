@@ -100,7 +100,7 @@ export function SlackLayout({ children }: SlackLayoutProps) {
   }
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
       <div className="w-64 bg-sidebar-background border-r border-border flex flex-col">
         <SlackSidebar
@@ -115,7 +115,7 @@ export function SlackLayout({ children }: SlackLayoutProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4">
+        <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center space-x-4">
             {currentView === 'chat' && selectedChannelId && (
               <ChatHeader

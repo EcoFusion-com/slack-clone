@@ -68,7 +68,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing tickets...')
       loadTickets()
-    }, 120000) // 2 minutes
+    }, 300000) // 5 minutes (300000ms)
     
     return () => clearInterval(refreshInterval)
   }, [safeWorkspaceId])
@@ -404,7 +404,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }
 
   return (
-    <div className="h-full bg-background overflow-auto">
+    <div className="min-h-full bg-background">
       <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
         <div className="mb-8">
