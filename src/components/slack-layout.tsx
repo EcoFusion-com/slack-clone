@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useUser, SignInButton, UserButton } from "@clerk/clerk-react"
+import { useUser, SignInButton } from "@clerk/clerk-react"
 import { SlackSidebar } from "@/components/slack-sidebar"
 import { ChatHeader } from "@/components/chat-header"
 import { ChatArea } from "@/components/chat-area"
@@ -64,7 +64,7 @@ export function SlackLayout({ children }: SlackLayoutProps) {
         return <MentionsAndReactions />
       case 'chat':
       default:
-        return <ChatArea channelId={selectedChannelId ? parseInt(selectedChannelId) : 1} />
+        return <ChatArea channelId={selectedChannelId} workspaceId={currentWorkspaceId || "1"} />
     }
   }
 
@@ -100,9 +100,9 @@ export function SlackLayout({ children }: SlackLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 bg-sidebar-background border-r border-border flex flex-col">
+      <div className="w-64 bg-sidebar-background border-r border-border flex flex-col shrink-0">
         <SlackSidebar
           selectedChannelId={selectedChannelId}
           onChannelSelect={handleChannelSelect}
@@ -113,10 +113,10 @@ export function SlackLayout({ children }: SlackLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 flex-shrink-0">
-          <div className="flex items-center space-x-4">
+        <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
+          <div className="flex items-center space-x-4 min-w-0">
             {currentView === 'chat' && selectedChannelId && (
               <ChatHeader
                 channelName="general"
@@ -152,23 +152,14 @@ export function SlackLayout({ children }: SlackLayoutProps) {
             )}
           </div>
 
-          {/* User Menu */}
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-muted-foreground">
-              {user?.fullName || user?.emailAddresses[0]?.emailAddress}
-            </div>
-            <UserButton 
-              appearance={{
-                elements: {
-                  avatarBox: "h-8 w-8"
-                }
-              }}
-            />
+          {/* Empty space for layout balance */}
+          <div className="flex items-center space-x-4 shrink-0">
+            {/* User info moved to sidebar */}
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {renderMainContent()}
         </div>
       </div>

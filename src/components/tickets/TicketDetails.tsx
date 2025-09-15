@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { 
   X, 
   Edit, 
@@ -21,7 +21,9 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { cn } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useApiClient, type Ticket } from "@/lib/api"
 import { useAuth, useUser } from "@clerk/clerk-react"
@@ -172,9 +174,30 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
     }
   }
 
+  // Custom DialogContent without built-in close button
+  const CustomDialogContent = React.forwardRef<
+    React.ElementRef<typeof DialogPrimitive.Content>,
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+  >(({ className, children, ...props }, ref) => (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  ))
+  CustomDialogContent.displayName = DialogPrimitive.Content.displayName
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <CustomDialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -212,7 +235,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose} className="shrink-0">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -220,9 +243,9 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <div className="grid grid-cols-3 gap-6 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
             {/* Main Content */}
-            <div className="col-span-2 space-y-6 overflow-hidden">
+            <div className="lg:col-span-2 space-y-6 overflow-y-auto pr-2">
               {/* Description */}
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
@@ -239,8 +262,8 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                     {ticket.attachments.map((attachment) => (
                       <div key={attachment.id} className="flex items-center space-x-2 p-2 bg-muted/50 rounded">
                         <Paperclip className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{attachment.original_filename}</span>
-                        <span className="text-xs text-muted-foreground">({attachment.mime_type})</span>
+                        <span className="text-sm font-medium truncate">{attachment.original_filename}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">({attachment.mime_type})</span>
                       </div>
                     ))}
                   </div>
@@ -248,9 +271,9 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
               )}
 
               {/* Comments */}
-              <div className="flex-1 overflow-hidden">
-                <h3 className="font-semibold mb-2">Comments ({ticket.comments.length})</h3>
-                <ScrollArea className="h-64 border rounded-lg p-4">
+              <div className="space-y-4">
+                <h3 className="font-semibold">Comments ({ticket.comments.length})</h3>
+                <div className="border rounded-lg p-4 max-h-80 overflow-y-auto">
                   <div className="space-y-4">
                     {ticket.comments.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
@@ -259,13 +282,13 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                     ) : (
                       ticket.comments.map((comment) => (
                         <div key={comment.id} className="flex space-x-3">
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-8 w-8 shrink-0">
                             <AvatarImage src={comment.user_avatar} />
                             <AvatarFallback className="text-xs">
                               {comment.user_name.split(' ').map(n => n[0]).join('')}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
                               <span className="text-sm font-medium">{comment.user_name}</span>
                               <span className="text-xs text-muted-foreground">
@@ -277,22 +300,23 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
                           </div>
                         </div>
                       ))
                     )}
                   </div>
-                </ScrollArea>
+                </div>
 
                 {/* Add Comment */}
-                <div className="mt-4 space-y-2">
+                <div className="space-y-2">
                   <Textarea
                     placeholder="Add a comment..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     rows={3}
                     disabled={isSubmittingComment}
+                    className="resize-none"
                   />
                   <div className="flex justify-end">
                     <Button 
@@ -309,7 +333,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-auto">
               {/* Ticket Info */}
               <div>
                 <h3 className="font-semibold mb-3">Ticket Information</h3>
@@ -379,7 +403,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
             </div>
           </div>
         </div>
-      </DialogContent>
+      </CustomDialogContent>
     </Dialog>
   )
 }

@@ -19,12 +19,12 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useApiClient, type Ticket } from "@/lib/api"
 import { useUser } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
@@ -55,21 +55,44 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   // WebSocket connection for real-time updates
   const wsClient = useWebSocketClient()
   
+  // Track processed ticket IDs to prevent duplicates
+  const [processedTicketIds, setProcessedTicketIds] = useState<Set<string>>(new Set())
+  
+  // Debounce mechanism to prevent rapid API calls
+  const [isLoadingDebounced, setIsLoadingDebounced] = useState(false)
+  
+  // Clean up processed IDs periodically to prevent memory leaks
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      setProcessedTicketIds(prev => {
+        // Keep only IDs that are currently in the tickets list
+        const currentTicketIds = new Set(tickets.map(ticket => ticket.id))
+        return new Set([...prev].filter(id => currentTicketIds.has(id)))
+      })
+    }, 60000) // Clean up every minute
+    
+    return () => clearInterval(cleanup)
+  }, [tickets])
+  
   // Connect to WebSocket when component mounts
   useEffect(() => {
     if (wsClient && !wsClient.isConnected) {
-      wsClient.connect(safeWorkspaceId) // Connect to workspace-specific channel
+      // Use a workspace-specific channel ID for tickets
+      const workspaceChannelId = `workspace-${safeWorkspaceId}`
+      wsClient.connect(workspaceChannelId).catch(error => {
+        console.error('Failed to connect WebSocket for tickets:', error)
+      })
     }
   }, [wsClient, safeWorkspaceId])
 
   useEffect(() => {
     loadTickets()
     
-    // Set up periodic refresh every 2 minutes to ensure data persistence
+    // Set up periodic refresh every 5 minutes to ensure data persistence
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing tickets...')
       loadTickets()
-    }, 300000) // 5 minutes (300000ms)
+    }, 300000) // 5 minutes
     
     return () => clearInterval(refreshInterval)
   }, [safeWorkspaceId])
@@ -97,31 +120,42 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
     }
   }, [safeWorkspaceId])
 
-  // Listen for WebSocket events
+  // Listen for WebSocket events - only set up once
   useEffect(() => {
-    if (!wsClient.isConnected) {
-      console.log('WebSocket not connected, skipping event listeners')
-      return
-    }
-
     console.log('Setting up WebSocket event listeners')
 
     const handleTicketCreated = (data: any) => {
       console.log('Received ticket_created event:', data)
       const newTicket = data.data.ticket
-      setTickets(prev => {
-        // Check if ticket already exists to prevent duplicates
-        const exists = prev.some(ticket => ticket.id === newTicket.id)
-        if (exists) {
-          console.log('Ticket already exists, skipping duplicate')
+      
+      // Check if we've already processed this ticket
+      setProcessedTicketIds(prev => {
+        if (prev.has(newTicket.id)) {
+          console.log('Ticket already processed, skipping duplicate:', newTicket.id)
           return prev
         }
-        console.log('Adding new ticket to list')
-        return [newTicket, ...prev]
-      })
-      toast({
-        title: "New Ticket Created",
-        description: `${newTicket.title} has been created`,
+        
+        // Mark as processed
+        const newSet = new Set(prev)
+        newSet.add(newTicket.id)
+        
+        // Add to tickets only if not already present
+        setTickets(tickets => {
+          const exists = tickets.some(ticket => ticket.id === newTicket.id)
+          if (exists) {
+            console.log('Ticket already in list, skipping duplicate:', newTicket.id)
+            return tickets
+          }
+          console.log('Adding new ticket to list:', newTicket.id)
+          return [newTicket, ...tickets]
+        })
+        
+        toast({
+          title: "New Ticket Created",
+          description: `${newTicket.title} has been created`,
+        })
+        
+        return newSet
       })
     }
 
@@ -142,46 +176,19 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
       loadTickets()
     }
 
-    const handleTicketStatusChange = (data: any) => {
-      console.log('Ticket status change received:', data)
-      
-      // Update the specific ticket in the list
-      setTickets(prevTickets => 
-        prevTickets.map(ticket => 
-          ticket.id === data.data.ticket_id 
-            ? { ...ticket, status: data.data.action === 'acknowledge' ? 'in_progress' : data.data.action }
-            : ticket
-        )
-      )
-      
-      // Show toast notification
-      const actionLabels = {
-        acknowledge: 'acknowledged',
-        submit: 'submitted',
-        approve: 'approved',
-        reject: 'rejected'
-      }
-      
-      toast({
-        title: `Ticket ${actionLabels[data.data.action as keyof typeof actionLabels] || data.data.action}`,
-        description: data.data.comment || `Ticket has been ${actionLabels[data.data.action as keyof typeof actionLabels] || data.data.action}`,
-      })
-    }
-
     // Add event listeners
     wsClient.on('ticket_created', handleTicketCreated)
     wsClient.on('ticket_updated', handleTicketUpdated)
-    wsClient.on('ticket_status_change', handleTicketStatusChange)
     wsClient.on('reconnect', handleWebSocketReconnect)
 
     // Cleanup
     return () => {
+      console.log('Cleaning up WebSocket event listeners')
       wsClient.off('ticket_created', handleTicketCreated)
       wsClient.off('ticket_updated', handleTicketUpdated)
-      wsClient.off('ticket_status_change', handleTicketStatusChange)
       wsClient.off('reconnect', handleWebSocketReconnect)
     }
-  }, [wsClient.isConnected, toast])
+  }, []) // Empty dependency array - only set up once
 
   useEffect(() => {
     filterTickets()
@@ -195,8 +202,15 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }, [tickets.length, onTicketCountChange])
 
   const loadTickets = async () => {
+    // Prevent rapid successive calls
+    if (isLoadingDebounced) {
+      console.log('Loading already in progress, skipping...')
+      return
+    }
+    
     try {
       setIsLoading(true)
+      setIsLoadingDebounced(true)
       console.log('Loading tickets for workspace:', safeWorkspaceId)
       
       const response = await apiClient.getTickets({
@@ -209,7 +223,24 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
       
       // Ensure we have a valid response with tickets array
       if (response && Array.isArray(response.tickets)) {
-        setTickets(response.tickets)
+        // Merge with existing tickets to avoid duplicates
+        setTickets(prev => {
+          const existingIds = new Set(prev.map(ticket => ticket.id))
+          const newTickets = response.tickets.filter(ticket => !existingIds.has(ticket.id))
+          const mergedTickets = [...newTickets, ...prev]
+          
+          // Sort by creation date (newest first)
+          return mergedTickets.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+        })
+        
+        // Update processed IDs set with loaded tickets
+        setProcessedTicketIds(prev => {
+          const newSet = new Set(prev)
+          response.tickets.forEach(ticket => newSet.add(ticket.id))
+          return newSet
+        })
         console.log('Loaded tickets:', response.tickets.length)
       } else {
         console.warn('Invalid tickets response:', response)
@@ -230,11 +261,21 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
       })
     } finally {
       setIsLoading(false)
+      // Reset debounce flag after a short delay
+      setTimeout(() => setIsLoadingDebounced(false), 1000)
     }
   }
 
   const filterTickets = () => {
-    let filtered = tickets
+    // First, deduplicate tickets by ID
+    const uniqueTickets = tickets.reduce((acc, ticket) => {
+      if (!acc.find(t => t.id === ticket.id)) {
+        acc.push(ticket)
+      }
+      return acc
+    }, [] as Ticket[])
+
+    let filtered = uniqueTickets
 
     // Search filter
     if (searchQuery) {
@@ -366,6 +407,9 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }
 
   const handleTicketCreate = (newTicket: Ticket) => {
+    // Add to processed IDs to prevent duplicates
+    setProcessedTicketIds(prev => new Set([...prev, newTicket.id]))
+    
     setTickets(prev => [newTicket, ...prev])
     setIsCreateDialogOpen(false)
     toast({
@@ -405,13 +449,12 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Fixed Header */}
-      <div className="flex-shrink-0 p-6 pb-0">
+    <div className="h-full bg-background flex flex-col">
+      <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Tickets</h1>
                 <p className="text-muted-foreground">
@@ -455,8 +498,8 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
             </div>
 
             {/* Filters */}
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+              <div className="relative flex-1 max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tickets..."
@@ -465,89 +508,84 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex space-x-4 w-full sm:w-auto">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-6 pt-0">
-            <div className="max-w-7xl mx-auto">
-              {/* Tickets List */}
-              <div className="space-y-4">
-              {filteredTickets.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No tickets found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
-                    ? "Try adjusting your search or filter criteria"
-                    : "Create your first ticket to get started"
-                  }
-                </p>
-                <div className="text-sm text-muted-foreground">
-                  <p>Total tickets in database: {tickets.length}</p>
-                  <p>Workspace ID: {safeWorkspaceId}</p>
-                  <p>WebSocket connected: {wsClient.isConnected() ? 'Yes' : 'No'}</p>
-                  <p>Last API response: {tickets.length > 0 ? 'Success' : 'Empty response'}</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    console.log('Debug: Refreshing tickets manually')
-                    loadTickets()
-                  }}
-                  className="mt-4"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              </CardContent>
-            </Card>
-              ) : (
-                filteredTickets.map((ticket) => (
-              <Card key={ticket.id} className="hover:shadow-md transition-shadow cursor-pointer">
+          {/* Tickets List */}
+          <div className="space-y-4">
+            {filteredTickets.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No tickets found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
+                      ? "Try adjusting your search or filter criteria"
+                      : "Create your first ticket to get started"
+                    }
+                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    <p>Total tickets in database: {tickets.length}</p>
+                    <p>Workspace ID: {safeWorkspaceId}</p>
+                    <p>WebSocket connected: {wsClient.isConnected() ? 'Yes' : 'No'}</p>
+                    <p>Last API response: {tickets.length > 0 ? 'Success' : 'Empty response'}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      console.log('Debug: Refreshing tickets manually')
+                      loadTickets()
+                    }}
+                    className="mt-4"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+                filteredTickets.map((ticket, index) => (
+              <Card key={`${ticket.id}-${index}`} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                        <Badge className={getStatusColor(ticket.status)}>
                               {getStatusIcon(ticket.status)}
                               <span className="ml-1 capitalize">{ticket.status.replace('_', ' ')}</span>
-                            </div>
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                            </Badge>
+                        <Badge className={getPriorityColor(ticket.priority)}>
                               {ticket.priority.toUpperCase()}
-                            </div>
+                            </Badge>
                           </div>
                       <p className="text-muted-foreground mb-3 line-clamp-2">
                         {ticket.description}
@@ -601,13 +639,11 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
-                ))
-              )}
-              </div>
-            </div>
+                </Card>
+              ))
+            )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Ticket Details Dialog */}

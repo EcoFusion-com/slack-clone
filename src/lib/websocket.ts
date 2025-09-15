@@ -2,11 +2,17 @@
  * WebSocket client for real-time communication with Clerk authentication
  */
 
-// Note: Clerk import is optional and will be available when @clerk/clerk-react is installed
-// import { useAuth } from "@clerk/clerk-react";
-import { getWebSocketUrlFromEnv } from "./websocket-utils";
+import { useAuth } from "@clerk/clerk-react";
 
-const WS_BASE_URL = getWebSocketUrlFromEnv();
+// Dynamic WebSocket URL based on protocol
+const getWebSocketUrl = () => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = backendUrl.replace(/^https?:\/\//, '');
+  return `${wsProtocol}//${host}/ws`;
+};
+
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || getWebSocketUrl();
 
 export interface WebSocketMessage {
   type: string;
@@ -121,7 +127,19 @@ class WebSocketClient {
       }
 
       if (this.isConnecting) {
-        reject(new Error('Connection already in progress'));
+        // Wait for existing connection to complete instead of rejecting
+        const checkConnection = () => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            resolve();
+          } else if (!this.isConnecting) {
+            // Previous connection failed, try again
+            this.connect(channelId).then(resolve).catch(reject);
+          } else {
+            // Still connecting, wait a bit more
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
         return;
       }
 
@@ -141,6 +159,7 @@ class WebSocketClient {
         }
 
         const wsUrl = `${this.url}/${channelId}?token=${token}`;
+        console.log('Attempting to connect to WebSocket:', wsUrl);
         
         try {
           this.ws = new WebSocket(wsUrl);
@@ -172,6 +191,7 @@ class WebSocketClient {
 
           this.ws.onerror = (error) => {
             console.error('WebSocket error:', error);
+            console.error('WebSocket URL:', wsUrl);
             this.isConnecting = false;
             reject(error);
           };
@@ -235,6 +255,21 @@ class WebSocketClient {
     }
   }
 
+  sendTypingIndicator(channelId: string, isTyping: boolean) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      const message = {
+        type: 'user_typing',
+        data: {
+          channel_id: channelId,
+          is_typing: isTyping
+        }
+      };
+      this.ws.send(JSON.stringify(message));
+    } else {
+      console.error('WebSocket is not connected');
+    }
+  }
+
   on(event: string, callback: WebSocketEventCallback) {
     if (!this.eventCallbacks.has(event)) {
       this.eventCallbacks.set(event, []);
@@ -274,14 +309,10 @@ export const wsClient = new WebSocketClient();
 
 // Hook for using WebSocket client with Clerk authentication
 export function useWebSocketClient() {
-  // Note: This requires @clerk/clerk-react to be installed
-  // Uncomment the following lines when Clerk is properly integrated:
-  // const { getToken } = useAuth();
-  // wsClient.setAuth(getToken);
+  const { getToken } = useAuth();
   
-  // For now, return client without authentication
-  // This will work for development but requires proper Clerk integration for production
-  console.warn('WebSocket client initialized without authentication. Install @clerk/clerk-react for full functionality.');
+  // Set the authentication method
+  wsClient.setAuth(getToken);
   
   return wsClient;
 }

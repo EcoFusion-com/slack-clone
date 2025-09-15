@@ -5,7 +5,7 @@
 
 import { useAuth } from "@clerk/clerk-react";
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Types for API responses
 export interface User {
@@ -344,8 +344,8 @@ class ApiClient {
   }
 
   // Workspace endpoints
-  async getWorkspaces(token: string): Promise<Workspace[]> {
-    return this.request<Workspace[]>('/api/v1/workspaces', { method: 'GET' }, token);
+  async getWorkspaces(token: string): Promise<{ workspaces: Workspace[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
+    return this.request<{ workspaces: Workspace[]; total: number; page: number; size: number; pages: number; has_more: boolean }>('/api/v1/workspaces', { method: 'GET' }, token);
   }
 
   async createWorkspace(data: WorkspaceCreate, token: string): Promise<Workspace> {
@@ -360,19 +360,30 @@ class ApiClient {
   }
 
   // Channel endpoints
-  async getChannels(workspaceId: string, token: string): Promise<Channel[]> {
-    return this.request<Channel[]>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
+  async getChannels(workspaceId: string, token: string): Promise<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
+    return this.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
   }
 
-  async createChannel(data: any, token: string): Promise<Channel> {
-    return this.request<Channel>('/api/v1/channels', {
+  async createChannel(workspaceId: string, data: any, token: string): Promise<Channel> {
+    return this.request<Channel>(`/api/v1/channels?workspace_id=${workspaceId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
-  async getChannel(id: string, token: string): Promise<Channel> {
-    return this.request<Channel>(`/api/v1/channels/${id}`, { method: 'GET' }, token);
+  async getChannel(channelId: string, token: string): Promise<Channel> {
+    return this.request<Channel>(`/api/v1/channels/${channelId}`, { method: 'GET' }, token);
+  }
+
+  async updateChannel(channelId: string, data: any, token: string): Promise<Channel> {
+    return this.request<Channel>(`/api/v1/channels/${channelId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, token);
+  }
+
+  async deleteChannel(channelId: string, token: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/v1/channels/${channelId}`, { method: 'DELETE' }, token);
   }
 
   // Message endpoints
@@ -396,6 +407,30 @@ class ApiClient {
 
   async deleteMessage(id: string, token: string): Promise<void> {
     return this.request<void>(`/api/v1/messages/${id}`, { method: 'DELETE' }, token);
+  }
+
+  async addMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string; reaction_id: string }> {
+    return this.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    }, token);
+  }
+
+  async removeMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions/${emoji}`, {
+      method: 'DELETE',
+    }, token);
+  }
+
+  async editMessage(messageId: string, content: string, token: string): Promise<Message> {
+    return this.request<Message>(`/api/v1/messages/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }, token);
+  }
+
+  async getMessageReplies(messageId: string, page: number = 1, limit: number = 50, token: string): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
+    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies?page=${page}&size=${limit}`, { method: 'GET' }, token);
   }
 
   // Ticket endpoints
@@ -572,11 +607,13 @@ export function useApiClient() {
       return apiClient.getCurrentUser(token);
     },
     
-    async getWorkspaces(): Promise<Workspace[]> {
-      const token = await getToken();
-      if (!token) throw new Error('No authentication token available');
-      return apiClient.getWorkspaces(token);
-    },
+  async getWorkspaces(): Promise<Workspace[]> {
+    const token = await getToken();
+    if (!token) throw new Error('No authentication token available');
+    const response = await apiClient.getWorkspaces(token);
+    // Backend returns WorkspaceListResponse with workspaces property
+    return response.workspaces || [];
+  },
     
     async getTickets(params?: Parameters<typeof apiClient.getTickets>[0]): Promise<TicketListResponse> {
       const token = await getToken();
@@ -650,10 +687,66 @@ export function useApiClient() {
       return apiClient.sendMessage(data, token);
     },
     
+    async addMessageReaction(messageId: string, emoji: string): Promise<{ message: string; reaction_id: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.addMessageReaction(messageId, emoji, token);
+    },
+    
+    async removeMessageReaction(messageId: string, emoji: string): Promise<{ message: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.removeMessageReaction(messageId, emoji, token);
+    },
+    
+    async editMessage(messageId: string, content: string): Promise<Message> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.editMessage(messageId, content, token);
+    },
+    
+    async deleteMessage(messageId: string): Promise<{ message: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      await apiClient.deleteMessage(messageId, token);
+      return { message: "Message deleted successfully" };
+    },
+    
+    async getMessageReplies(messageId: string, page?: number, limit?: number): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.getMessageReplies(messageId, page, limit, token);
+    },
+    
     async getChannels(workspaceId: string): Promise<Channel[]> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.getChannels(workspaceId, token);
+      const response = await apiClient.getChannels(workspaceId, token);
+      return response.channels || [];
+    },
+    
+    async createChannel(workspaceId: string, data: { name: string; description?: string; type?: string }): Promise<Channel> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.createChannel(workspaceId, data, token);
+    },
+    
+    async getChannel(channelId: string): Promise<Channel> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.getChannel(channelId, token);
+    },
+    
+    async updateChannel(channelId: string, data: { name?: string; description?: string; type?: string; is_archived?: boolean }): Promise<Channel> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.updateChannel(channelId, data, token);
+    },
+    
+    async deleteChannel(channelId: string): Promise<{ message: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.deleteChannel(channelId, token);
     },
     
     async createWorkspace(data: WorkspaceCreate): Promise<Workspace> {

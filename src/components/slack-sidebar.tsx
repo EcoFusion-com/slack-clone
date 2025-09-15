@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { 
   Hash, 
   Lock, 
@@ -14,16 +14,22 @@ import {
   Search,
   Ticket,
   Users,
-  Shield
+  Shield,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { useApiClient, type Channel, type Workspace, type User as UserType } from "@/lib/api"
-import { useAuth, useUser } from "@clerk/clerk-react"
+import { useAuth, useUser, UserButton } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
+import { useChat } from "@/hooks/use-chat"
+import { useWorkspace } from "@/hooks/use-workspace"
 
 // Channel interface is imported from @/lib/api
 
@@ -119,47 +125,100 @@ interface SlackSidebarProps {
 
 export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, onViewChange, ticketCount = 0 }: SlackSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [channels, setChannels] = useState<Channel[]>([])
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Use the workspace hook instead of local state
+  const { currentWorkspaceId, isLoading: isLoadingWorkspace } = useWorkspace()
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false)
+  const [newChannelName, setNewChannelName] = useState("")
+  const [newChannelDescription, setNewChannelDescription] = useState("")
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false)
   const { user } = useUser()
   const { toast } = useToast()
   const apiClient = useApiClient()
+  
+  // Stabilize workspace ID to prevent infinite loops in useChat hook
+  const stableWorkspaceId = useMemo(() => {
+    return currentWorkspaceId || null
+  }, [currentWorkspaceId])
+  
+  const {
+    channels = [], // Initialize with empty array to prevent map errors
+    currentChannel,
+    isLoadingChannels,
+    createChannel
+  } = useChat({ 
+    workspaceId: stableWorkspaceId
+  })
+  
+  // Safety check to ensure channels is always an array
+  const safeChannels = Array.isArray(channels) ? channels : []
+  
+  // Find current workspace from the workspaces array
+  const currentWorkspace = Array.isArray(workspaces) ? workspaces.find(w => w.id === currentWorkspaceId) || null : null
 
-  // Load workspaces and channels
+  // Load workspaces for display only (current workspace is managed by useWorkspace hook)
   useEffect(() => {
-    loadData()
+    loadWorkspaces()
   }, [])
 
-  const loadData = async () => {
+  const loadWorkspaces = async () => {
     try {
       setIsLoading(true)
       
-      // Load workspaces
+      // Load workspaces for display
       const workspacesData = await apiClient.getWorkspaces()
       setWorkspaces(workspacesData)
       
-      if (workspacesData.length > 0) {
-        setCurrentWorkspace(workspacesData[0])
-        
-        // Load channels for the first workspace
-        const channelsData = await apiClient.getChannels(workspacesData[0].id)
-        setChannels(channelsData)
-      }
+      // Channels are now loaded automatically by the useChat hook
     } catch (error) {
-      console.error('Failed to load sidebar data:', error)
+      console.error('Failed to load workspaces:', error)
       toast({
-        title: "Failed to load data",
-        description: "Could not load workspaces and channels",
+        title: "Failed to load workspaces",
+        description: "Could not load workspace list",
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
   }
+  
+  // Combined loading state
+  const isSidebarLoading = isLoading || isLoadingWorkspace || isLoadingChannels
 
-  if (isLoading) {
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim() || !currentWorkspaceId) return
+
+    try {
+      setIsCreatingChannel(true)
+      
+      // Use the chat hook's createChannel method (includes optimistic updates)
+      const newChannel = await createChannel({
+        name: newChannelName.trim(),
+        description: newChannelDescription.trim() || undefined,
+        type: "public"
+      })
+      
+      if (newChannel) {
+        // Select the new channel
+        onChannelSelect?.(newChannel.id)
+        
+        // Close the modal and reset form
+        setIsCreateChannelOpen(false)
+        setNewChannelName("")
+        setNewChannelDescription("")
+      }
+    } catch (error) {
+      console.error('Failed to create channel:', error)
+      // Error handling is done in the hook
+    } finally {
+      setIsCreatingChannel(false)
+    }
+  }
+
+  // Show loading state while workspace/channels are loading
+  if (isSidebarLoading) {
     return (
       <div className="w-64 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
         <div className="p-4 border-b border-sidebar-border">
@@ -169,7 +228,47 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
             </div>
             <div>
               <h2 className="font-bold text-sidebar-foreground">Loading...</h2>
+              <p className="text-xs text-sidebar-foreground/70">Setting up workspace</p>
             </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sidebar-foreground mx-auto mb-2"></div>
+            <p className="text-sm text-sidebar-foreground/70">Loading channels...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state if no workspace is available
+  if (!currentWorkspaceId) {
+    return (
+      <div className="w-64 bg-gradient-sidebar border-r border-sidebar-border flex flex-col h-full">
+        <div className="p-4 border-b border-sidebar-border">
+          <div className="flex items-center space-x-3">
+            <div className="h-9 w-9 rounded bg-gradient-primary flex items-center justify-center">
+              <span className="text-white font-bold text-lg">W</span>
+            </div>
+            <div>
+              <h2 className="font-bold text-sidebar-foreground">No Workspace</h2>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-sm text-sidebar-foreground/70 mb-4">
+              Unable to load workspace. Please refresh the page or contact support.
+            </p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              size="sm" 
+              variant="outline"
+              className="text-xs"
+            >
+              Refresh Page
+            </Button>
           </div>
         </div>
       </div>
@@ -281,8 +380,8 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
           <div className="border-t border-sidebar-border my-4" />
 
           {/* Channels */}
-          <SidebarSection title="Channels" count={channels.length}>
-            {channels.map((channel) => (
+          <SidebarSection title="Channels" count={safeChannels.length}>
+            {safeChannels.map((channel) => (
               <ChannelItem 
                 key={channel.id} 
                 channel={channel} 
@@ -290,14 +389,63 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
                 onClick={() => onChannelSelect?.(channel.id)}
               />
             ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start px-2 h-7 text-sidebar-foreground/70 hover:bg-sidebar-hover"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add channels
-            </Button>
+            <Dialog open={isCreateChannelOpen} onOpenChange={setIsCreateChannelOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start px-2 h-7 text-sidebar-foreground/70 hover:bg-sidebar-hover"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add channels
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create a channel</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="channel-name">Channel name</Label>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-muted-foreground">#</span>
+                      <Input
+                        id="channel-name"
+                        placeholder="e.g. general"
+                        value={newChannelName}
+                        onChange={(e) => setNewChannelName(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="channel-description">Description (optional)</Label>
+                    <Textarea
+                      id="channel-description"
+                      placeholder="What's this channel about?"
+                      value={newChannelDescription}
+                      onChange={(e) => setNewChannelDescription(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateChannelOpen(false)}
+                    disabled={isCreatingChannel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateChannel}
+                    disabled={!newChannelName.trim() || isCreatingChannel}
+                  >
+                    {isCreatingChannel ? "Creating..." : "Create"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </SidebarSection>
         </div>
       </ScrollArea>
@@ -322,13 +470,24 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
               Member
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-sidebar-foreground/70 hover:bg-sidebar-hover"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          <div className="relative">
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "h-8 w-8 bg-transparent hover:bg-sidebar-hover rounded-md flex items-center justify-center p-0",
+                  userButtonPopoverCard: "bg-sidebar-background border-sidebar-border",
+                  userButtonPopoverActionButton: "text-sidebar-foreground hover:bg-sidebar-hover",
+                  userButtonPopoverActionButtonText: "text-sidebar-foreground",
+                  userButtonPopoverFooter: "hidden"
+                }
+              }}
+              showName={false}
+              afterSignOutUrl="/"
+            />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <Settings className="h-4 w-4 text-sidebar-foreground/70" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

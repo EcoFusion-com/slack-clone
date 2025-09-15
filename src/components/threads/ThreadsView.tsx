@@ -176,10 +176,12 @@ export function ThreadsView() {
                       <p className="text-sm">{thread.parent_message.content}</p>
                       
                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Reply className="h-3 w-3" />
-                          <span>{thread.reply_count} repl{thread.reply_count !== 1 ? 'ies' : 'y'}</span>
-                        </div>
+                        {thread.reply_count > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <Reply className="h-3 w-3" />
+                            <span>{thread.reply_count} repl{thread.reply_count !== 1 ? 'ies' : 'y'}</span>
+                          </div>
+                        )}
                         {thread.replies.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <User className="h-3 w-3" />
