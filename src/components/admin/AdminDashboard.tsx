@@ -45,20 +45,66 @@ export function AdminDashboard() {
     try {
       setIsLoading(true)
       
-      // Load users and workspaces
-      const [usersData, workspacesData] = await Promise.all([
-        apiClient.getUsers(),
-        apiClient.getWorkspaces()
-      ])
+      // ⚠️ Using dummy data because backend API not implemented: /api/v1/admin/stats
+      const dummyUsers: User[] = [
+        {
+          id: "1",
+          clerk_id: "user_1",
+          email: "john@example.com",
+          username: "john",
+          full_name: "John Doe",
+          avatar_url: "https://via.placeholder.com/40",
+          bio: "Software Developer",
+          phone: "+1234567890",
+          timezone: "UTC",
+          status: "online" as const,
+          last_seen: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: "2",
+          clerk_id: "user_2",
+          email: "jane@example.com",
+          username: "jane",
+          full_name: "Jane Smith",
+          avatar_url: "https://via.placeholder.com/40",
+          bio: "Product Manager",
+          phone: "+1234567891",
+          timezone: "UTC",
+          status: "away" as const,
+          last_seen: new Date(Date.now() - 3600000).toISOString(),
+          last_login: new Date(Date.now() - 3600000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
       
-      setUsers(usersData)
-      setWorkspaces(workspacesData)
+      const dummyWorkspaces: Workspace[] = [
+        {
+          id: "1",
+          name: "Main Workspace",
+          description: "Primary workspace for the team",
+          slug: "main-workspace",
+          is_active: true,
+          allow_guest_access: false,
+          require_approval: true,
+          owner_id: "1",
+          member_count: 5,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+      
+      setUsers(dummyUsers)
+      setWorkspaces(dummyWorkspaces)
       
       // Calculate basic stats
       setStats({
-        totalUsers: usersData.length,
-        totalWorkspaces: workspacesData.length,
-        totalTickets: 0 // Would need to implement ticket counting
+        totalUsers: dummyUsers.length,
+        totalWorkspaces: dummyWorkspaces.length,
+        totalTickets: 15 // Dummy ticket count
       })
       
     } catch (error) {

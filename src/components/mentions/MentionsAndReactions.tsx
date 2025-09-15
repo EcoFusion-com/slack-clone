@@ -64,10 +64,45 @@ export function MentionsAndReactions() {
     try {
       setIsLoading(true)
       
-      // TODO: Implement real API calls when backend endpoints are available
-      // For now, show empty state
-      setMentions([])
-      setReactions([])
+      // ⚠️ Using dummy data because backend API not implemented: /api/v1/mentions
+      const dummyMentions: Mention[] = [
+        {
+          id: "1",
+          message: {
+            id: "msg-1",
+            content: "Hey @john, can you review this PR?",
+            channel_id: "1",
+            timestamp: new Date().toISOString()
+          },
+          mentioned_by: {
+            id: "2",
+            name: "Jane Doe",
+            avatar: "https://via.placeholder.com/40"
+          },
+          timestamp: new Date().toISOString(),
+          is_read: false
+        }
+      ];
+      
+      const dummyReactions: Reaction[] = [
+        {
+          id: "1",
+          message: {
+            id: "msg-2",
+            content: "Great work on the feature!",
+            channel_id: "1",
+            timestamp: new Date().toISOString()
+          },
+          emoji: "👍",
+          count: 3,
+          users: ["1", "2", "3"],
+          timestamp: new Date().toISOString(),
+          is_read: false
+        }
+      ];
+      
+      setMentions(dummyMentions)
+      setReactions(dummyReactions)
       
     } catch (error) {
       console.error('Failed to load mentions and reactions:', error)
@@ -83,7 +118,7 @@ export function MentionsAndReactions() {
 
   const markAsRead = async (id: string, type: 'mention' | 'reaction') => {
     try {
-      // TODO: Implement API call to mark as read
+      // ⚠️ Using dummy data because backend API not implemented: /api/v1/mentions/{id}/read
       if (type === 'mention') {
         setMentions(prev => prev.map(m => 
           m.id === id ? { ...m, is_read: true } : m
