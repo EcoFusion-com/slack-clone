@@ -24,6 +24,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useApiClient, type Ticket } from "@/lib/api"
 import { useUser } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
@@ -404,95 +405,104 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   }
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-        <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-              <h1 className="text-3xl font-bold text-foreground">Tickets</h1>
-              <p className="text-muted-foreground">
-                Manage and track support tickets
-              </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                console.log('Manual refresh triggered')
-                loadTickets()
-              }}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Ticket
+    <div className="flex flex-col h-full bg-background">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 p-6 pb-0">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Tickets</h1>
+                <p className="text-muted-foreground">
+                  Manage and track support tickets
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('Manual refresh triggered')
+                    loadTickets()
+                  }}
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
                 </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Ticket</DialogTitle>
-                <DialogDescription>
-                    Create a new support ticket for your workspace
-                </DialogDescription>
-              </DialogHeader>
-              <CreateTicketForm 
-                  workspaceId={safeWorkspaceId}
-                onSuccess={handleTicketCreate}
-                onCancel={() => setIsCreateDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-          </div>
-        </div>
+                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Ticket
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Create New Ticket</DialogTitle>
+                      <DialogDescription>
+                          Create a new support ticket for your workspace
+                      </DialogDescription>
+                    </DialogHeader>
+                    <CreateTicketForm 
+                        workspaceId={safeWorkspaceId}
+                      onSuccess={handleTicketCreate}
+                      onCancel={() => setIsCreateDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
 
-        {/* Filters */}
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+            {/* Filters */}
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tickets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="submitted">Submitted</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
-        {/* Tickets List */}
-            <div className="space-y-4">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-6 pt-0">
+            <div className="max-w-7xl mx-auto">
+              {/* Tickets List */}
+              <div className="space-y-4">
               {filteredTickets.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
@@ -594,9 +604,13 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                   </Card>
                 ))
               )}
+              </div>
             </div>
+          </div>
+        </ScrollArea>
+      </div>
 
-        {/* Ticket Details Dialog */}
+      {/* Ticket Details Dialog */}
       {selectedTicket && (
         <TicketDetails 
           ticket={selectedTicket}
@@ -604,7 +618,6 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
           onUpdate={handleTicketUpdate}
         />
       )}
-      </div>
     </div>
   )
 }

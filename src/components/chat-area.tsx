@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea, AutoScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -212,6 +212,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
   const [isSending, setIsSending] = useState(false)
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([])
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const { user } = useUser()
   const { toast } = useToast()
@@ -229,6 +230,16 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
       wsClient.disconnect()
     }
   }, [channelId])
+
+  // Reset auto-scroll flag after it's been used
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      const timer = setTimeout(() => {
+        setShouldAutoScroll(false)
+      }, 100) // Reset after 100ms
+      return () => clearTimeout(timer)
+    }
+  }, [shouldAutoScroll])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -290,6 +301,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
           }
           
           setMessages(prev => [...prev, newMessage])
+          setShouldAutoScroll(true) // Trigger auto-scroll for new messages
         }
       })
 
@@ -407,7 +419,12 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1">
+      <AutoScrollArea 
+        ref={scrollAreaRef} 
+        className="flex-1"
+        autoScroll={true}
+        scrollToBottom={shouldAutoScroll}
+      >
         <div className="py-4">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">

@@ -126,9 +126,34 @@ All colors MUST be HSL for consistent theming.
     @apply bg-background text-foreground;
     overflow-x: hidden;
     min-height: 100vh;
+    /* Mobile touch scrolling optimizations */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   html, body, #root {
     min-height: 100%;
+  }
+
+  /* Enhanced scrolling for mobile devices */
+  @media (max-width: 768px) {
+    * {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    
+    /* Prevent bounce scrolling on iOS */
+    body {
+      position: fixed;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #root {
+      height: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
   }
 }
