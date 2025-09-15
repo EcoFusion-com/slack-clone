@@ -466,7 +466,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
             </div>
           </div>
         )}
-      </ScrollArea>
+      </AutoScrollArea>
 
       {/* Message Input */}
       <div className="border-t border-border p-4">
