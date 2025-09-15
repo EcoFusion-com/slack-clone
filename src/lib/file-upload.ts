@@ -81,12 +81,29 @@ class FileUploadService {
    * Get presigned URL for file upload
    */
   async getPresignedUrl(file: File): Promise<PresignedUrlResponse> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/files/presigned-url
-    return Promise.resolve({
-      presigned_url: 'https://dummy-s3-url.com/upload',
-      file_url: `https://dummy-s3-url.com/files/${file.name}`,
-      upload_id: Date.now().toString()
-    });
+    try {
+      const response = await fetch('/api/v1/files/presigned-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          file_size: file.size,
+          mime_type: file.type
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to get presigned URL: ${response.statusText}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error getting presigned URL:', error)
+      throw error
+    }
   }
 
   /**

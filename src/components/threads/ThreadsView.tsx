@@ -48,70 +48,9 @@ export function ThreadsView() {
     try {
       setIsLoading(true)
       
-      // ⚠️ Using dummy data because backend API not implemented: /api/v1/threads
-      const dummyThreads: Thread[] = [
-        {
-          id: "thread-1",
-          parent_message: {
-            id: "msg-1",
-            content: "What do you think about the new design?",
-            message_type: "text" as const,
-            user: {
-              id: "1",
-              name: "John Doe",
-              avatar: "https://via.placeholder.com/40",
-              isOnline: true,
-              role: "MEMBER"
-            },
-            channel_id: "1",
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            reactions: [],
-            replies: 2,
-            isOwn: false,
-            readStatus: "read" as const,
-            attachments: [],
-            is_edited: false,
-            is_deleted: false,
-            edit_count: 0,
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-            updated_at: new Date(Date.now() - 3600000).toISOString()
-          },
-          replies: [
-            {
-              id: "reply-1",
-              content: "I like it! The colors are much better.",
-              message_type: "text" as const,
-              user: {
-                id: "2",
-                name: "Jane Smith",
-                avatar: "https://via.placeholder.com/40",
-                isOnline: true,
-                role: "MEMBER"
-              },
-              channel_id: "1",
-              timestamp: new Date(Date.now() - 1800000).toISOString(),
-              reactions: [],
-              replies: 0,
-              isOwn: false,
-              readStatus: "read" as const,
-              attachments: [],
-              is_edited: false,
-              is_deleted: false,
-              edit_count: 0,
-              created_at: new Date(Date.now() - 1800000).toISOString(),
-              updated_at: new Date(Date.now() - 1800000).toISOString()
-            }
-          ],
-          reply_count: 2,
-          last_activity: new Date(Date.now() - 1800000).toISOString(),
-          is_unread: true,
-          is_pinned: false,
-          channel_name: "general",
-          channel_id: "1"
-        }
-      ];
-      
-      setThreads(dummyThreads)
+      // TODO: Implement real API call when backend endpoint is available
+      // For now, show empty state
+      setThreads([])
       
     } catch (error) {
       console.error('Failed to load threads:', error)
@@ -237,12 +176,10 @@ export function ThreadsView() {
                       <p className="text-sm">{thread.parent_message.content}</p>
                       
                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        {thread.reply_count > 0 && (
-                          <div className="flex items-center space-x-1">
-                            <Reply className="h-3 w-3" />
-                            <span>{thread.reply_count} repl{thread.reply_count !== 1 ? 'ies' : 'y'}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center space-x-1">
+                          <Reply className="h-3 w-3" />
+                          <span>{thread.reply_count} repl{thread.reply_count !== 1 ? 'ies' : 'y'}</span>
+                        </div>
                         {thread.replies.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <User className="h-3 w-3" />

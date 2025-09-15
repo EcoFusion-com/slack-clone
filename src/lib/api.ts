@@ -361,108 +361,29 @@ class ApiClient {
 
   // Channel endpoints
   async getChannels(workspaceId: string, token: string): Promise<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/channels
-    return Promise.resolve({
-      channels: [
-        {
-          id: "1",
-          name: "general",
-          description: "General discussion",
-          channel_type: "public" as const,
-          is_archived: false,
-          allow_file_sharing: true,
-          allow_threads: true,
-          allow_reactions: true,
-          workspace_id: workspaceId,
-          created_by: "1",
-          member_count: 5,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: "2", 
-          name: "random",
-          description: "Random chat",
-          channel_type: "public" as const,
-          is_archived: false,
-          allow_file_sharing: true,
-          allow_threads: true,
-          allow_reactions: true,
-          workspace_id: workspaceId,
-          created_by: "1",
-          member_count: 3,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      total: 2,
-      page: 1,
-      size: 20,
-      pages: 1,
-      has_more: false
-    });
+    return this.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
   }
 
   async createChannel(workspaceId: string, data: any, token: string): Promise<Channel> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/channels
-    return Promise.resolve({
-      id: Date.now().toString(),
-      name: data.name,
-      description: data.description || "",
-      channel_type: data.type || "public" as const,
-      is_archived: false,
-      allow_file_sharing: true,
-      allow_threads: true,
-      allow_reactions: true,
-      workspace_id: workspaceId,
-      created_by: "1",
-      member_count: 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
+    return this.request<Channel>(`/api/v1/channels?workspace_id=${workspaceId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, token);
   }
 
   async getChannel(channelId: string, token: string): Promise<Channel> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/channels/{id}
-    return Promise.resolve({
-      id: channelId,
-      name: "general",
-      description: "General discussion",
-      channel_type: "public" as const,
-      is_archived: false,
-      allow_file_sharing: true,
-      allow_threads: true,
-      allow_reactions: true,
-      workspace_id: "1",
-      created_by: "1",
-      member_count: 5,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
+    return this.request<Channel>(`/api/v1/channels/${channelId}`, { method: 'GET' }, token);
   }
 
   async updateChannel(channelId: string, data: any, token: string): Promise<Channel> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/channels/{id}
-    return Promise.resolve({
-      id: channelId,
-      name: data.name || "general",
-      description: data.description || "General discussion",
-      channel_type: data.type || "public" as const,
-      is_archived: data.is_archived || false,
-      allow_file_sharing: true,
-      allow_threads: true,
-      allow_reactions: true,
-      workspace_id: "1",
-      created_by: "1",
-      member_count: 5,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
+    return this.request<Channel>(`/api/v1/channels/${channelId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }, token);
   }
 
   async deleteChannel(channelId: string, token: string): Promise<{ message: string }> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/channels/{id}
-    return Promise.resolve({ message: "Channel deleted successfully" });
+    return this.request<{ message: string }>(`/api/v1/channels/${channelId}`, { method: 'DELETE' }, token);
   }
 
   // Message endpoints
@@ -489,16 +410,16 @@ class ApiClient {
   }
 
   async addMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string; reaction_id: string }> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/messages/{id}/reactions
-    return Promise.resolve({ 
-      message: "Reaction added successfully", 
-      reaction_id: Date.now().toString() 
-    });
+    return this.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    }, token);
   }
 
   async removeMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string }> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/messages/{id}/reactions/{emoji}
-    return Promise.resolve({ message: "Reaction removed successfully" });
+    return this.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions/${emoji}`, {
+      method: 'DELETE',
+    }, token);
   }
 
   async editMessage(messageId: string, content: string, token: string): Promise<Message> {
@@ -509,41 +430,7 @@ class ApiClient {
   }
 
   async getMessageReplies(messageId: string, page: number = 1, limit: number = 50, token: string): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    // ⚠️ Using dummy data because backend API not implemented: /api/v1/messages/{id}/replies
-    return Promise.resolve({
-      messages: [
-        {
-          id: "reply-1",
-          content: "This is a reply to the message",
-          message_type: "text" as const,
-          parent_message_id: messageId,
-          user: {
-            id: "1",
-            name: "John Doe",
-            avatar: "https://via.placeholder.com/40",
-            isOnline: true,
-            role: "MEMBER"
-          },
-          channel_id: "1",
-          timestamp: new Date().toISOString(),
-          reactions: [],
-          replies: 0,
-          isOwn: false,
-          readStatus: "read" as const,
-          attachments: [],
-          is_edited: false,
-          is_deleted: false,
-          edit_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
-      total: 1,
-      page: 1,
-      size: 50,
-      pages: 1,
-      has_more: false
-    });
+    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies?page=${page}&size=${limit}`, { method: 'GET' }, token);
   }
 
   // Ticket endpoints
@@ -684,33 +571,8 @@ class ApiClient {
     my_tickets: Ticket[];
     overdue_tickets: Ticket[];
   }> {
-    // ⚠️ Using dummy data because backend API endpoint mismatch: /api/v1/tickets/dashboard/{workspace_id}
-    return Promise.resolve({
-      stats: {
-        total: 15,
-        pending: 5,
-        in_progress: 3,
-        submitted: 2,
-        approved: 3,
-        rejected: 1,
-        cancelled: 1,
-        overdue: 2,
-        by_priority: {
-          low: 5,
-          medium: 6,
-          high: 3,
-          urgent: 1
-        },
-        by_category: {
-          bug: 8,
-          feature: 4,
-          support: 3
-        }
-      },
-      recent_tickets: [],
-      my_tickets: [],
-      overdue_tickets: []
-    });
+    const endpoint = workspaceId ? `/api/v1/tickets/dashboard?workspace_id=${workspaceId}` : '/api/v1/tickets/dashboard';
+    return this.request(endpoint, { method: 'GET' }, token);
   }
 
   // Health check

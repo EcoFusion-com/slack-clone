@@ -15,15 +15,8 @@ import {
   Check,
   CheckCheck,
   X,
-  Edit,
-  Pin,
-  Copy,
-  Trash2,
-  Eye,
-  EyeOff,
-  Link
+  Edit
 } from "lucide-react"
-// import EmojiPicker from 'emoji-picker-react' // ⚠️ Package not installed - emoji picker disabled
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -61,8 +54,6 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
   const [showReplies, setShowReplies] = useState(false)
   const [replies, setReplies] = useState<Message[]>([])
   const [isLoadingReplies, setIsLoadingReplies] = useState(false)
-  const [isPinned, setIsPinned] = useState(false)
-  const [isUnread, setIsUnread] = useState(false)
   const apiClient = useApiClient()
   const { toast } = useToast()
 
@@ -201,63 +192,10 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
     }
   }
 
-  const handlePinMessage = () => {
-    setIsPinned(!isPinned)
-    toast({
-      title: isPinned ? "Message unpinned" : "Message pinned",
-      description: isPinned ? "Message has been unpinned" : "Message has been pinned to this channel",
-    })
-  }
-
-  const handleCopyLink = async () => {
-    try {
-      const messageLink = `${window.location.origin}/channel/${message.channel_id}/message/${message.id}`
-      await navigator.clipboard.writeText(messageLink)
-      toast({
-        title: "Link copied",
-        description: "Message link has been copied to clipboard",
-      })
-    } catch (error) {
-      toast({
-        title: "Failed to copy link",
-        description: "Could not copy message link to clipboard",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleMarkUnread = () => {
-    setIsUnread(!isUnread)
-    toast({
-      title: isUnread ? "Message marked as read" : "Message marked as unread",
-      description: isUnread ? "Message has been marked as read" : "Message has been marked as unread",
-    })
-  }
-
-  const handleDeleteMessage = async () => {
-    try {
-      // In a real app, this would call the API to delete the message
-      await new Promise(resolve => setTimeout(resolve, 500))
-      toast({
-        title: "Message deleted",
-        description: "Message has been deleted",
-      })
-      // In a real app, this would trigger a re-render or remove from the list
-    } catch (error) {
-      toast({
-        title: "Failed to delete message",
-        description: "Could not delete the message",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <div 
       className={`group px-4 py-2 hover:bg-message-hover relative ${
         message.isOwn ? 'bg-message-own/20' : ''
-      } ${isPinned ? 'border-l-4 border-yellow-500 bg-yellow-50/50' : ''} ${
-        isUnread ? 'bg-blue-50/50 border-l-4 border-blue-500' : ''
       }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -433,33 +371,16 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end">
               {message.isOwn && (
                 <>
                   <DropdownMenuItem onClick={handleEdit}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit message
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDeleteMessage} className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete message
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={handlePinMessage}>
-                <Pin className={`h-4 w-4 mr-2 ${isPinned ? 'text-yellow-500' : ''}`} />
-                {isPinned ? 'Unpin message' : 'Pin message'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyLink}>
-                <Link className="h-4 w-4 mr-2" />
-                Copy link
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleMarkUnread}>
-                {isUnread ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                {isUnread ? 'Mark as read' : 'Mark as unread'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Bookmark className="h-4 w-4 mr-2" />
                 Save message
@@ -490,11 +411,8 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
   const [message, setMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false)
-  // const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false) // ⚠️ Emoji picker disabled
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  // const emojiPickerRef = useRef<HTMLDivElement>(null) // ⚠️ Emoji picker disabled
   const { user } = useUser()
   const { toast } = useToast()
   
@@ -521,27 +439,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     }
   }, [messages])
 
-  // Close emoji picker when clicking outside - DISABLED
-  // useEffect(() => {
-  //   const handleClickOutside = (event: MouseEvent) => {
-  //     if (
-  //       emojiPickerRef.current &&
-  //       !emojiPickerRef.current.contains(event.target as Node) &&
-  //       !(event.target as HTMLElement).closest("[data-emoji-button]")
-  //     ) {
-  //       setIsEmojiPickerOpen(false)
-  //     }
-  //   }
-
-  //   if (isEmojiPickerOpen) {
-  //     document.addEventListener("mousedown", handleClickOutside)
-  //   }
-
-  //   return () => {
-  //     document.removeEventListener("mousedown", handleClickOutside)
-  //   }
-  // }, [isEmojiPickerOpen])
-
   const handleFileUpload = async (files: File[]) => {
     try {
       const uploadedFiles = await fileUploadService.uploadFiles(files)
@@ -559,27 +456,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
       })
     }
   }
-
-  // const handleEmojiClick = (emojiData: any) => {
-  //   const emoji = emojiData.emoji
-    
-  //   if (textareaRef.current) {
-  //     const textarea = textareaRef.current
-  //     const start = textarea.selectionStart
-  //     const end = textarea.selectionEnd
-  //     const newMessage = message.substring(0, start) + emoji + message.substring(end)
-  //     setMessage(newMessage)
-      
-  //     // Focus back to textarea and set cursor position after emoji
-  //     setTimeout(() => {
-  //       textarea.focus()
-  //       textarea.setSelectionRange(start + emoji.length, start + emoji.length)
-  //     }, 0)
-  //   }
-    
-  //   // Close picker after selection
-  //   setIsEmojiPickerOpen(false)
-  // }
 
   const handleSendMessage = async () => {
     if ((!message.trim() && uploadedFiles.length === 0) || isSendingMessage) return
@@ -691,7 +567,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
           
           <div className="flex-1 relative">
             <Textarea
-              ref={textareaRef}
               placeholder="Message #general"
               value={message}
               onChange={handleTyping}
@@ -723,19 +598,9 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
                   />
                 </DialogContent>
               </Dialog>
-              {/* Emoji picker button - DISABLED */}
-              {/* <Button 
-                variant="ghost" 
-                size="sm" 
-                className={`h-6 w-6 p-0 ${isEmojiPickerOpen ? 'bg-primary/10' : ''}`}
-                data-emoji-button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setIsEmojiPickerOpen(!isEmojiPickerOpen)
-                }}
-              >
-                <Smile className={`h-4 w-4 ${isEmojiPickerOpen ? 'text-primary' : 'text-muted-foreground'}`} />
-              </Button> */}
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Smile className="h-4 w-4 text-muted-foreground" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -748,30 +613,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
             </div>
           </div>
         </div>
-
-        {/* Emoji Picker - DISABLED */}
-        {/* {isEmojiPickerOpen && (
-          <div 
-            ref={emojiPickerRef}
-            className="fixed bottom-20 right-4 z-[9999]"
-          >
-            <div className="bg-white border border-border rounded-lg shadow-xl overflow-hidden">
-              <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                width={350}
-                height={400}
-                searchDisabled={false}
-                skinTonesDisabled={false}
-                previewConfig={{
-                  defaultEmoji: '1f60a',
-                  defaultCaption: 'Choose your emoji!',
-                  showPreview: true
-                }}
-                searchPlaceHolder="Search emojis..."
-              />
-            </div>
-          </div>
-        )} */}
 
         {/* Uploaded Files Preview */}
         {uploadedFiles.length > 0 && (
@@ -816,3 +657,4 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     </div>
   )
 }
+ 
