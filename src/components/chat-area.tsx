@@ -23,7 +23,7 @@ import {
   EyeOff,
   Link
 } from "lucide-react"
-import EmojiPicker from 'emoji-picker-react'
+// import EmojiPicker from 'emoji-picker-react' // ⚠️ Package not installed - emoji picker disabled
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -490,11 +490,11 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
   const [message, setMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false)
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false)
+  // const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false) // ⚠️ Emoji picker disabled
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  // const emojiPickerRef = useRef<HTMLDivElement>(null) // ⚠️ Emoji picker disabled
   const { user } = useUser()
   const { toast } = useToast()
   
@@ -521,26 +521,26 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     }
   }, [messages])
 
-  // Close emoji picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(event.target as Node) &&
-        !(event.target as HTMLElement).closest("[data-emoji-button]")
-      ) {
-        setIsEmojiPickerOpen(false)
-      }
-    }
+  // Close emoji picker when clicking outside - DISABLED
+  // useEffect(() => {
+  //   const handleClickOutside = (event: MouseEvent) => {
+  //     if (
+  //       emojiPickerRef.current &&
+  //       !emojiPickerRef.current.contains(event.target as Node) &&
+  //       !(event.target as HTMLElement).closest("[data-emoji-button]")
+  //     ) {
+  //       setIsEmojiPickerOpen(false)
+  //     }
+  //   }
 
-    if (isEmojiPickerOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
+  //   if (isEmojiPickerOpen) {
+  //     document.addEventListener("mousedown", handleClickOutside)
+  //   }
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [isEmojiPickerOpen])
+  //   return () => {
+  //     document.removeEventListener("mousedown", handleClickOutside)
+  //   }
+  // }, [isEmojiPickerOpen])
 
   const handleFileUpload = async (files: File[]) => {
     try {
@@ -560,26 +560,26 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     }
   }
 
-  const handleEmojiClick = (emojiData: any) => {
-    const emoji = emojiData.emoji
+  // const handleEmojiClick = (emojiData: any) => {
+  //   const emoji = emojiData.emoji
     
-    if (textareaRef.current) {
-      const textarea = textareaRef.current
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const newMessage = message.substring(0, start) + emoji + message.substring(end)
-      setMessage(newMessage)
+  //   if (textareaRef.current) {
+  //     const textarea = textareaRef.current
+  //     const start = textarea.selectionStart
+  //     const end = textarea.selectionEnd
+  //     const newMessage = message.substring(0, start) + emoji + message.substring(end)
+  //     setMessage(newMessage)
       
-      // Focus back to textarea and set cursor position after emoji
-      setTimeout(() => {
-        textarea.focus()
-        textarea.setSelectionRange(start + emoji.length, start + emoji.length)
-      }, 0)
-    }
+  //     // Focus back to textarea and set cursor position after emoji
+  //     setTimeout(() => {
+  //       textarea.focus()
+  //       textarea.setSelectionRange(start + emoji.length, start + emoji.length)
+  //     }, 0)
+  //   }
     
-    // Close picker after selection
-    setIsEmojiPickerOpen(false)
-  }
+  //   // Close picker after selection
+  //   setIsEmojiPickerOpen(false)
+  // }
 
   const handleSendMessage = async () => {
     if ((!message.trim() && uploadedFiles.length === 0) || isSendingMessage) return
@@ -723,7 +723,8 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
                   />
                 </DialogContent>
               </Dialog>
-              <Button 
+              {/* Emoji picker button - DISABLED */}
+              {/* <Button 
                 variant="ghost" 
                 size="sm" 
                 className={`h-6 w-6 p-0 ${isEmojiPickerOpen ? 'bg-primary/10' : ''}`}
@@ -734,7 +735,7 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
                 }}
               >
                 <Smile className={`h-4 w-4 ${isEmojiPickerOpen ? 'text-primary' : 'text-muted-foreground'}`} />
-              </Button>
+              </Button> */}
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -748,8 +749,8 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
           </div>
         </div>
 
-        {/* Emoji Picker */}
-        {isEmojiPickerOpen && (
+        {/* Emoji Picker - DISABLED */}
+        {/* {isEmojiPickerOpen && (
           <div 
             ref={emojiPickerRef}
             className="fixed bottom-20 right-4 z-[9999]"
@@ -770,7 +771,7 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
               />
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Uploaded Files Preview */}
         {uploadedFiles.length > 0 && (
