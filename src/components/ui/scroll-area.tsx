@@ -50,17 +50,14 @@ const AutoScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollArea>,
   AutoScrollAreaProps
 >(({ className, children, autoScroll = false, scrollToBottom = false, ...props }, ref) => {
-  const viewportRef = React.useRef<HTMLDivElement>(null);
-  
   const scrollToBottomFn = React.useCallback(() => {
-    if (viewportRef.current) {
-      requestAnimationFrame(() => {
-        viewportRef.current?.scrollTo({
-          top: viewportRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
+    // Simple scroll to bottom using window.scrollTo
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
       });
-    }
+    });
   }, []);
 
   React.useEffect(() => {
@@ -72,14 +69,11 @@ const AutoScrollArea = React.forwardRef<
   // Expose scrollToBottom function via ref
   React.useImperativeHandle(ref, () => ({
     scrollToBottom: scrollToBottomFn,
-    // Forward other ScrollArea methods if needed
   }));
 
   return (
-    <ScrollArea className={cn(className)} {...props}>
-      <div ref={viewportRef} className="h-full w-full">
-        {children}
-      </div>
+    <ScrollArea ref={ref} className={cn(className)} {...props}>
+      {children}
     </ScrollArea>
   );
 });

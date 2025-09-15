@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { ScrollArea, AutoScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -212,8 +212,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
   const [isSending, setIsSending] = useState(false)
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([])
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
-  const scrollAreaRef = useRef<{ scrollToBottom: () => void }>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const { user } = useUser()
   const { toast } = useToast()
   const wsClient = useWebSocketClient()
@@ -231,20 +230,15 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
     }
   }, [channelId])
 
-  // Reset auto-scroll flag after it's been used
-  useEffect(() => {
-    if (shouldAutoScroll) {
-      const timer = setTimeout(() => {
-        setShouldAutoScroll(false)
-      }, 100) // Reset after 100ms
-      return () => clearTimeout(timer)
-    }
-  }, [shouldAutoScroll])
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollAreaRef.current && typeof scrollAreaRef.current.scrollToBottom === 'function') {
-      scrollAreaRef.current.scrollToBottom()
+    if (scrollAreaRef.current) {
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (viewport) {
+        requestAnimationFrame(() => {
+          viewport.scrollTop = viewport.scrollHeight;
+        });
+      }
     }
   }, [messages])
 
@@ -298,7 +292,6 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
           }
           
           setMessages(prev => [...prev, newMessage])
-          setShouldAutoScroll(true) // Trigger auto-scroll for new messages
         }
       })
 
@@ -416,12 +409,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Messages */}
-      <AutoScrollArea 
-        ref={scrollAreaRef} 
-        className="flex-1"
-        autoScroll={true}
-        scrollToBottom={shouldAutoScroll}
-      >
+      <ScrollArea ref={scrollAreaRef} className="flex-1">
         <div className="py-4">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -463,7 +451,7 @@ export function ChatArea({ channelId = 1 }: ChatAreaProps) {
             </div>
           </div>
         )}
-      </AutoScrollArea>
+      </ScrollArea>
 
       {/* Message Input */}
       <div className="border-t border-border p-4">
