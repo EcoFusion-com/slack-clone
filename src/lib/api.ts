@@ -365,20 +365,20 @@ class ApiClient {
 
   // User endpoints
   async getCurrentUser(token: string): Promise<User> {
-    return this.request<User>('/api/v1/users/me', { method: 'GET' }, token);
+    return this.request<User>('/api/v1/users/me/', { method: 'GET' }, token);
   }
 
   async getUsers(token: string): Promise<User[]> {
-    const response = await this.request<{users: User[]}>('/api/v1/users', { method: 'GET' }, token);
+    const response = await this.request<{users: User[]}>('/api/v1/users/', { method: 'GET' }, token);
     return response.users || [];
   }
 
   async getUser(id: string, token: string): Promise<User> {
-    return this.request<User>(`/api/v1/users/${id}`, { method: 'GET' }, token);
+    return this.request<User>(`/api/v1/users/${id}/`, { method: 'GET' }, token);
   }
 
   async updateUser(id: string, data: Partial<User>, token: string): Promise<User> {
-    return this.request<User>(`/api/v1/users/${id}`, {
+    return this.request<User>(`/api/v1/users/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }, token);
@@ -386,92 +386,92 @@ class ApiClient {
 
   // Workspace endpoints
   async getWorkspaces(token: string): Promise<{ workspaces: Workspace[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    return this.request<{ workspaces: Workspace[]; total: number; page: number; size: number; pages: number; has_more: boolean }>('/api/v1/workspaces', { method: 'GET' }, token);
+    return this.request<{ workspaces: Workspace[]; total: number; page: number; size: number; pages: number; has_more: boolean }>('/api/v1/workspaces/', { method: 'GET' }, token);
   }
 
   async createWorkspace(data: WorkspaceCreate, token: string): Promise<Workspace> {
-    return this.request<Workspace>('/api/v1/workspaces', {
+    return this.request<Workspace>('/api/v1/workspaces/', {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async getWorkspace(id: string, token: string): Promise<Workspace> {
-    return this.request<Workspace>(`/api/v1/workspaces/${id}`, { method: 'GET' }, token);
+    return this.request<Workspace>(`/api/v1/workspaces/${id}/`, { method: 'GET' }, token);
   }
 
   // Channel endpoints
   async getChannels(workspaceId: string, token: string): Promise<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    return this.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
+    return this.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels/?workspace_id=${workspaceId}`, { method: 'GET' }, token);
   }
 
   async createChannel(workspaceId: string, data: any, token: string): Promise<Channel> {
-    return this.request<Channel>(`/api/v1/channels?workspace_id=${workspaceId}`, {
+    return this.request<Channel>(`/api/v1/channels/?workspace_id=${workspaceId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async getChannel(channelId: string, token: string): Promise<Channel> {
-    return this.request<Channel>(`/api/v1/channels/${channelId}`, { method: 'GET' }, token);
+    return this.request<Channel>(`/api/v1/channels/${channelId}/`, { method: 'GET' }, token);
   }
 
   async updateChannel(channelId: string, data: any, token: string): Promise<Channel> {
-    return this.request<Channel>(`/api/v1/channels/${channelId}`, {
+    return this.request<Channel>(`/api/v1/channels/${channelId}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }, token);
   }
 
   async deleteChannel(channelId: string, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/channels/${channelId}`, { method: 'DELETE' }, token);
+    return this.request<{ message: string }>(`/api/v1/channels/${channelId}/`, { method: 'DELETE' }, token);
   }
 
   // Message endpoints
   async getMessages(channelId: string, page: number = 1, limit: number = 50, token: string): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages?channel_id=${channelId}&page=${page}&size=${limit}`, { method: 'GET' }, token);
+    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/?channel_id=${channelId}&page=${page}&size=${limit}`, { method: 'GET' }, token);
   }
 
   async sendMessage(data: MessageCreate, token: string): Promise<Message> {
-    return this.request<Message>('/api/v1/messages', {
+    return this.request<Message>('/api/v1/messages/', {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async updateMessage(id: string, content: string, token: string): Promise<Message> {
-    return this.request<Message>(`/api/v1/messages/${id}`, {
+    return this.request<Message>(`/api/v1/messages/${id}/`, {
       method: 'PUT',
       body: JSON.stringify({ content }),
     }, token);
   }
 
   async deleteMessage(id: string, token: string): Promise<void> {
-    return this.request<void>(`/api/v1/messages/${id}`, { method: 'DELETE' }, token);
+    return this.request<void>(`/api/v1/messages/${id}/`, { method: 'DELETE' }, token);
   }
 
   async addMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string; reaction_id: string }> {
-    return this.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions`, {
+    return this.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions/`, {
       method: 'POST',
       body: JSON.stringify({ emoji }),
     }, token);
   }
 
   async removeMessageReaction(messageId: string, emoji: string, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions/${emoji}`, {
+    return this.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions/${emoji}/`, {
       method: 'DELETE',
     }, token);
   }
 
   async editMessage(messageId: string, content: string, token: string): Promise<Message> {
-    return this.request<Message>(`/api/v1/messages/${messageId}`, {
+    return this.request<Message>(`/api/v1/messages/${messageId}/`, {
       method: 'PUT',
       body: JSON.stringify({ content }),
     }, token);
   }
 
   async getMessageReplies(messageId: string, page: number = 1, limit: number = 50, token: string): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
-    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies?page=${page}&size=${limit}`, { method: 'GET' }, token);
+    return this.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies/?page=${page}&size=${limit}`, { method: 'GET' }, token);
   }
 
   // Ticket endpoints
@@ -546,50 +546,50 @@ class ApiClient {
   }
 
   async getTicket(id: string, token: string): Promise<Ticket> {
-    return this.request<Ticket>(`/api/v1/tickets/${id}`, { method: 'GET' }, token);
+    return this.request<Ticket>(`/api/v1/tickets/${id}/`, { method: 'GET' }, token);
   }
 
   async updateTicket(id: string, data: TicketUpdate, token: string): Promise<Ticket> {
-    return this.request<Ticket>(`/api/v1/tickets/${id}`, {
+    return this.request<Ticket>(`/api/v1/tickets/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }, token);
   }
 
   async deleteTicket(id: string, token: string): Promise<void> {
-    return this.request<void>(`/api/v1/tickets/${id}`, { method: 'DELETE' }, token);
+    return this.request<void>(`/api/v1/tickets/${id}/`, { method: 'DELETE' }, token);
   }
 
   async acknowledgeTicket(id: string, data: TicketAcknowledge, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/tickets/${id}/acknowledge`, {
+    return this.request<{ message: string }>(`/api/v1/tickets/${id}/acknowledge/`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async submitTicket(id: string, data: TicketSubmit, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/tickets/${id}/submit`, {
+    return this.request<{ message: string }>(`/api/v1/tickets/${id}/submit/`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async approveTicket(id: string, data: TicketApprove, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/tickets/${id}/approve`, {
+    return this.request<{ message: string }>(`/api/v1/tickets/${id}/approve/`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async rejectTicket(id: string, data: TicketReject, token: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/tickets/${id}/reject`, {
+    return this.request<{ message: string }>(`/api/v1/tickets/${id}/reject/`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
   }
 
   async addTicketComment(ticketId: string, data: TicketCommentCreate, token: string): Promise<TicketCommentResponse> {
-    return this.request<TicketCommentResponse>(`/api/v1/tickets/${ticketId}/comments`, {
+    return this.request<TicketCommentResponse>(`/api/v1/tickets/${ticketId}/comments/`, {
       method: 'POST',
       body: JSON.stringify(data),
     }, token);
@@ -612,13 +612,13 @@ class ApiClient {
     my_tickets: Ticket[];
     overdue_tickets: Ticket[];
   }> {
-    const endpoint = workspaceId ? `/api/v1/tickets/dashboard?workspace_id=${workspaceId}` : '/api/v1/tickets/dashboard';
+    const endpoint = workspaceId ? `/api/v1/tickets/dashboard/?workspace_id=${workspaceId}` : '/api/v1/tickets/dashboard/';
     return this.request(endpoint, { method: 'GET' }, token);
   }
 
   // Health check
   async healthCheck(): Promise<{ status: string; message: string }> {
-    return this.request<{ status: string; message: string }>('/health', { method: 'GET' });
+    return this.request<{ status: string; message: string }>('/health/', { method: 'GET' });
   }
 }
 
@@ -714,13 +714,13 @@ export function useApiClient() {
     async getMessages(channelId: string, page?: number, limit?: number): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages?channel_id=${channelId}&page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
+      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/?channel_id=${channelId}&page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
     },
     
     async sendMessage(data: MessageCreate): Promise<Message> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<Message>('/api/v1/messages', {
+      return apiClient.request<Message>('/api/v1/messages/', {
         method: 'POST',
         body: JSON.stringify(data),
       }, token);
@@ -729,7 +729,7 @@ export function useApiClient() {
     async addMessageReaction(messageId: string, emoji: string): Promise<{ message: string; reaction_id: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions`, {
+      return apiClient.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions/`, {
         method: 'POST',
         body: JSON.stringify({ emoji }),
       }, token);
@@ -738,7 +738,7 @@ export function useApiClient() {
     async removeMessageReaction(messageId: string, emoji: string): Promise<{ message: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions`, {
+      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions/`, {
         method: 'DELETE',
         body: JSON.stringify({ emoji }),
       }, token);
@@ -747,7 +747,7 @@ export function useApiClient() {
     async editMessage(messageId: string, content: string): Promise<Message> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<Message>(`/api/v1/messages/${messageId}`, {
+      return apiClient.request<Message>(`/api/v1/messages/${messageId}/`, {
         method: 'PUT',
         body: JSON.stringify({ content }),
       }, token);
@@ -756,7 +756,7 @@ export function useApiClient() {
     async deleteMessage(messageId: string): Promise<{ message: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}`, {
+      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}/`, {
         method: 'DELETE',
       }, token);
     },
@@ -764,13 +764,13 @@ export function useApiClient() {
     async getMessageReplies(messageId: string, page?: number, limit?: number): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies?page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
+      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies/?page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
     },
     
     async getChannels(workspaceId: string): Promise<Channel[]> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      const response = await apiClient.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
+      const response = await apiClient.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels/?workspace_id=${workspaceId}`, { method: 'GET' }, token);
       return response.channels || [];
     },
     
@@ -785,7 +785,7 @@ export function useApiClient() {
       
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.request<Channel>(`/api/v1/channels?workspace_id=${workspaceId}`, {
+      return apiClient.request<Channel>(`/api/v1/channels/?workspace_id=${workspaceId}`, {
         method: 'POST',
         body: JSON.stringify(channelData),
       }, token);

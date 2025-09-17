@@ -104,6 +104,7 @@ class WebSocketClient {
   private eventCallbacks: Map<string, WebSocketEventCallback[]> = new Map();
   private isConnecting = false;
   private getToken: (() => Promise<string | null>) | null = null;
+  private currentChannelId: string | null = null;
 
   constructor(baseUrl: string = WS_BASE_URL) {
     this.url = baseUrl;
@@ -111,6 +112,10 @@ class WebSocketClient {
 
   setAuth(getToken: () => Promise<string | null>) {
     this.getToken = getToken;
+  }
+
+  getCurrentChannel(): string | null {
+    return this.currentChannelId;
   }
 
   connect(channelId: string): Promise<void> {
@@ -124,10 +129,19 @@ class WebSocketClient {
       //   reconnectAttempts: this.reconnectAttempts
       // });
       
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        // console.log(`[WebSocket ${connectionId}] Already connected`);
+      // Check if already connected to the same channel
+      if (this.ws?.readyState === WebSocket.OPEN && this.currentChannelId === channelId) {
+        // console.log(`[WebSocket ${connectionId}] Already connected to same channel`);
         resolve();
         return;
+      }
+      
+      // If connected to different channel, disconnect first
+      if (this.ws?.readyState === WebSocket.OPEN && this.currentChannelId !== channelId) {
+        // console.log(`[WebSocket ${connectionId}] Switching channels, disconnecting first`);
+        this.ws.close(1000, 'Switching channel');
+        this.ws = null;
+        this.currentChannelId = null;
       }
 
       if (this.isConnecting) {
@@ -181,6 +195,7 @@ class WebSocketClient {
             // console.log(`[WebSocket ${connectionId}] Connected successfully`);
             this.isConnecting = false;
             this.reconnectAttempts = 0;
+            this.currentChannelId = channelId;
             resolve();
           };
 
@@ -329,6 +344,7 @@ class WebSocketClient {
       this.ws.close(1000, 'Client disconnect');
       this.ws = null;
     }
+    this.currentChannelId = null;
     this.eventCallbacks.clear();
   }
 

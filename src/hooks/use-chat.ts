@@ -308,17 +308,20 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
   // Connect to WebSocket when channel changes
   useEffect(() => {
     if (currentChannel) {
-      // Disconnect from previous channel if connected
-      if (wsClient.isConnected()) {
-        wsClient.disconnect()
+      // Only reconnect if we're not already connected to this channel
+      if (!wsClient.isConnected() || wsClient.getCurrentChannel() !== currentChannel.id) {
+        // Disconnect from previous channel if connected
+        if (wsClient.isConnected()) {
+          wsClient.disconnect()
+        }
+        
+        // Connect to new channel
+        wsClient.connect(currentChannel.id).catch(error => {
+          console.error('Failed to connect WebSocket:', error)
+        })
       }
-      
-      // Connect to new channel
-      wsClient.connect(currentChannel.id).catch(error => {
-        console.error('Failed to connect WebSocket:', error)
-      })
     }
-  }, [currentChannel, wsClient])
+  }, [currentChannel?.id, wsClient]) // Only depend on channel ID, not the entire channel object
   
   // Load current user on mount
   useEffect(() => {
