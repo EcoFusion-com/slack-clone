@@ -46,7 +46,7 @@ export function PeopleAndGroups() {
     try {
       setIsLoading(true)
       const usersData = await apiClient.getUsers()
-      console.log('Users data received:', usersData)
+      // console.log('Users data received:', usersData)
       // Ensure usersData is an array
       if (Array.isArray(usersData)) {
         setUsers(usersData)
@@ -138,10 +138,13 @@ export function PeopleAndGroups() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                id="people-search"
+                name="searchQuery"
                 placeholder="Search people..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+                className="pl-10"
+                autoComplete="off"
               />
             </div>
         <DropdownMenu>

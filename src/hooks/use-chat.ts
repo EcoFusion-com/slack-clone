@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useApiClient, type Message, type Channel } from '@/lib/api'
+import { useApiClient, type Message, type Channel, type User } from '@/lib/api'
 import { useWebSocketClient } from '@/lib/websocket'
 import { useToast } from '@/hooks/use-toast'
+import { useErrorHandler } from './use-error-handler'
 
 interface UseChatOptions {
   workspaceId: string
@@ -25,6 +26,7 @@ interface UseChatReturn {
   sendMessage: (content: string, attachments?: any[]) => Promise<void>
   loadMessages: () => Promise<void>
   loadChannels: () => Promise<void>
+  refreshMessages: () => Promise<void>
   
   // WebSocket state
   isConnected: boolean
@@ -34,6 +36,11 @@ interface UseChatReturn {
 export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatReturn {
   // Stabilize workspaceId to prevent infinite loops
   const safeWorkspaceId = useMemo(() => workspaceId?.toString() || null, [workspaceId])
+  
+  // Authentication handled by useApiClient
+  
+  // Error handling
+  const { handleError, handleApiError, handleWebSocketError } = useErrorHandler()
   
   // Channel state
   const [channels, setChannels] = useState<Channel[]>([])
@@ -45,12 +52,25 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   
+  // User state
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  
   // WebSocket state
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
   
   const apiClient = useApiClient()
   const wsClient = useWebSocketClient()
   const { toast } = useToast()
+  
+  // Load current user
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      const user = await apiClient.getCurrentUser()
+      setCurrentUser(user)
+    } catch (error) {
+      console.error('Failed to load current user:', error)
+    }
+  }, [])
   
   // Load channels on mount and workspace change
   const loadChannels = useCallback(async () => {
@@ -59,32 +79,25 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
       const channelsData = await apiClient.getChannels(safeWorkspaceId)
       setChannels(channelsData)
       
-      // If no channels exist, create a default "general" channel
+      // If no channels exist, show empty state
       if (channelsData.length === 0) {
-        try {
-          const defaultChannel = await apiClient.createChannel(safeWorkspaceId, {
-            name: "general",
-            description: "General discussion for the team",
-            type: "public"
-          })
-          setChannels([defaultChannel])
-          setCurrentChannel(defaultChannel)
-          // Persist channel selection
-          localStorage.setItem('selectedChannelId', defaultChannel.id)
-        } catch (error) {
-          console.error('Failed to create default channel:', error)
-          toast({
-            title: "Failed to create default channel",
-            description: "Could not create the general channel",
-            variant: "destructive",
-          })
-        }
+        // console.log('No channels found in workspace')
+        setChannels([])
+        setCurrentChannel(null)
       } else {
-        // Set current channel from localStorage or first channel
+        // Set current channel from localStorage or prioritize general channel
         const savedChannelId = localStorage.getItem('selectedChannelId')
-        const targetChannel = savedChannelId 
-          ? channelsData.find(c => c.id === savedChannelId) || channelsData[0]
-          : channelsData[0]
+        let targetChannel = null
+        
+        if (savedChannelId) {
+          // Try to find the saved channel
+          targetChannel = channelsData.find(c => c.id === savedChannelId)
+        }
+        
+        // If no saved channel or saved channel not found, prioritize general channel
+        if (!targetChannel) {
+          targetChannel = channelsData.find(c => c.name === 'general') || channelsData[0]
+        }
         
         setCurrentChannel(targetChannel)
         if (targetChannel) {
@@ -101,7 +114,7 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     } finally {
       setIsLoadingChannels(false)
     }
-  }, [safeWorkspaceId, apiClient, toast])
+  }, [safeWorkspaceId, toast])
   
   // Load messages for current channel
   const loadMessages = useCallback(async () => {
@@ -121,8 +134,14 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     } finally {
       setIsLoadingMessages(false)
     }
-  }, [currentChannel, apiClient, toast])
+  }, [currentChannel, toast])
   
+  // Refresh messages (useful after edit/delete operations)
+  const refreshMessages = useCallback(async () => {
+    if (!currentChannel) return
+    await loadMessages()
+  }, [currentChannel, loadMessages])
+
   // Create new channel
   const createChannel = useCallback(async (data: { name: string; description?: string; type?: string }): Promise<Channel | null> => {
     try {
@@ -150,7 +169,7 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
       })
       return null
     }
-  }, [safeWorkspaceId, apiClient, toast])
+  }, [safeWorkspaceId, toast])
   
   // Select channel
   const selectChannel = useCallback((channelId: string) => {
@@ -176,9 +195,9 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
         content: content.trim(),
         message_type: 'text',
         user: {
-          id: 'current-user', // Will be replaced by real user data
-          name: 'You',
-          avatar: undefined,
+          id: currentUser?.id || 'current-user',
+          name: currentUser?.full_name || currentUser?.email || 'You',
+          avatar: currentUser?.avatar_url,
           isOnline: true,
           role: 'USER'
         },
@@ -246,7 +265,7 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     } finally {
       setIsSendingMessage(false)
     }
-  }, [currentChannel, wsClient, apiClient, toast])
+  }, [currentChannel, wsClient, toast])
   
   // WebSocket event handlers
   useEffect(() => {
@@ -301,6 +320,11 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     }
   }, [currentChannel, wsClient])
   
+  // Load current user on mount
+  useEffect(() => {
+    loadCurrentUser()
+  }, [loadCurrentUser])
+  
   // Load data on mount and when workspace changes
   useEffect(() => {
     // Only load channels if we have a valid workspace ID (not null/undefined)
@@ -309,6 +333,17 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     }
   }, [safeWorkspaceId]) // Only depend on safeWorkspaceId, not loadChannels
   
+  // Handle channelId prop changes from parent component
+  useEffect(() => {
+    if (channelId && channels.length > 0) {
+      const targetChannel = channels.find(c => c.id === channelId)
+      if (targetChannel && targetChannel.id !== currentChannel?.id) {
+        setCurrentChannel(targetChannel)
+        localStorage.setItem('selectedChannelId', targetChannel.id)
+      }
+    }
+  }, [channelId, channels])
+
   // Load messages when channel changes
   useEffect(() => {
     if (currentChannel) {
@@ -333,9 +368,11 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     sendMessage,
     loadMessages,
     loadChannels,
+    refreshMessages,
     
     // WebSocket state
     isConnected: wsClient.isConnected(),
     typingUsers
   }
 }
+

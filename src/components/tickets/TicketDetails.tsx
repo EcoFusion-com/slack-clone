@@ -21,13 +21,14 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { cn } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useApiClient, type Ticket } from "@/lib/api"
 import { useAuth, useUser } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
+import { safeLength, safeArray } from "@/lib/safe-access"
 
 interface TicketDetailsProps {
   ticket: Ticket;
@@ -202,6 +203,9 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <DialogTitle className="text-xl font-bold">{ticket.title}</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground mt-1">
+                Ticket #{ticket.id} • Created {new Date(ticket.created_at).toLocaleDateString()}
+              </DialogDescription>
               <div className="flex items-center space-x-2 mt-2">
                 <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
                   {getStatusIcon(ticket.status)}
@@ -255,11 +259,11 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
               </div>
 
               {/* Attachments */}
-              {ticket.attachments.length > 0 && (
+              {safeLength(ticket.attachments) > 0 && (
                 <div>
                   <h3 className="font-semibold mb-2">Attachments</h3>
                   <div className="space-y-2">
-                    {ticket.attachments.map((attachment) => (
+                    {safeArray.map(ticket.attachments, (attachment: any) => (
                       <div key={attachment.id} className="flex items-center space-x-2 p-2 bg-muted/50 rounded">
                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium truncate">{attachment.original_filename}</span>
@@ -272,15 +276,15 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
 
               {/* Comments */}
               <div className="space-y-4">
-                <h3 className="font-semibold">Comments ({ticket.comments.length})</h3>
+                <h3 className="font-semibold">Comments ({safeLength(ticket.comments)})</h3>
                 <div className="border rounded-lg p-4 max-h-80 overflow-y-auto">
                   <div className="space-y-4">
-                    {ticket.comments.length === 0 ? (
+                    {safeLength(ticket.comments) === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No comments yet. Be the first to comment!
                       </p>
                     ) : (
-                      ticket.comments.map((comment) => (
+                      safeArray.map(ticket.comments, (comment: any) => (
                         <div key={comment.id} className="flex space-x-3">
                           <Avatar className="h-8 w-8 shrink-0">
                             <AvatarImage src={comment.user_avatar} />
@@ -311,12 +315,15 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                 {/* Add Comment */}
                 <div className="space-y-2">
                   <Textarea
+                    id="ticket-comment"
+                    name="comment"
                     placeholder="Add a comment..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     rows={3}
                     disabled={isSubmittingComment}
                     className="resize-none"
+                    autoComplete="off"
                   />
                   <div className="flex justify-end">
                     <Button 
@@ -380,12 +387,12 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
               </div>
 
               {/* History */}
-              {ticket.history.length > 0 && (
+              {safeLength(ticket.history) > 0 && (
                 <div>
                   <h3 className="font-semibold mb-3">History</h3>
                   <ScrollArea className="h-48">
                     <div className="space-y-3">
-                      {ticket.history.map((entry) => (
+                      {safeArray.map(ticket.history, (entry: any) => (
                         <div key={entry.id} className="text-sm">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium">{entry.user_name || 'System'}</span>

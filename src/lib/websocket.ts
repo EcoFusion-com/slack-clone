@@ -3,16 +3,10 @@
  */
 
 import { useAuth } from "@clerk/clerk-react";
+import { config } from './config';
 
-// Dynamic WebSocket URL based on protocol
-const getWebSocketUrl = () => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = backendUrl.replace(/^https?:\/\//, '');
-  return `${wsProtocol}//${host}/ws`;
-};
-
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || getWebSocketUrl();
+// Use configured WebSocket URL
+const WS_BASE_URL = config.websocketUrl;
 
 export interface WebSocketMessage {
   type: string;
@@ -121,17 +115,30 @@ class WebSocketClient {
 
   connect(channelId: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      const connectionId = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // console.log(`[WebSocket ${connectionId}] Connection attempt started`, {
+      //   channelId,
+      //   currentState: this.ws?.readyState,
+      //   isConnecting: this.isConnecting,
+      //   reconnectAttempts: this.reconnectAttempts
+      // });
+      
       if (this.ws?.readyState === WebSocket.OPEN) {
+        // console.log(`[WebSocket ${connectionId}] Already connected`);
         resolve();
         return;
       }
 
       if (this.isConnecting) {
+        // console.log(`[WebSocket ${connectionId}] Waiting for existing connection`);
         // Wait for existing connection to complete instead of rejecting
         const checkConnection = () => {
           if (this.ws?.readyState === WebSocket.OPEN) {
+            // console.log(`[WebSocket ${connectionId}] Existing connection completed`);
             resolve();
           } else if (!this.isConnecting) {
+            // console.log(`[WebSocket ${connectionId}] Previous connection failed, retrying`);
             // Previous connection failed, try again
             this.connect(channelId).then(resolve).catch(reject);
           } else {
@@ -146,6 +153,7 @@ class WebSocketClient {
       this.isConnecting = true;
 
       if (!this.getToken) {
+        console.error(`[WebSocket ${connectionId}] No authentication method available`);
         this.isConnecting = false;
         reject(new Error('No authentication method available'));
         return;
@@ -153,19 +161,24 @@ class WebSocketClient {
 
       this.getToken().then(token => {
         if (!token) {
+          console.error(`[WebSocket ${connectionId}] No access token available`);
           this.isConnecting = false;
           reject(new Error('No access token available'));
           return;
         }
 
         const wsUrl = `${this.url}/${channelId}?token=${token}`;
-        console.log('Attempting to connect to WebSocket:', wsUrl);
+        // console.log(`[WebSocket ${connectionId}] Attempting to connect`, {
+        //   wsUrl: wsUrl.replace(token, '[TOKEN]'),
+        //   tokenLength: token.length,
+        //   channelId
+        // });
         
         try {
           this.ws = new WebSocket(wsUrl);
 
           this.ws.onopen = () => {
-            console.log('WebSocket connected');
+            // console.log(`[WebSocket ${connectionId}] Connected successfully`);
             this.isConnecting = false;
             this.reconnectAttempts = 0;
             resolve();
@@ -174,14 +187,28 @@ class WebSocketClient {
           this.ws.onmessage = (event) => {
             try {
               const message: WebSocketMessage = JSON.parse(event.data);
+              // console.log(`[WebSocket ${connectionId}] Message received`, {
+              //   type: message.type,
+              //   dataKeys: Object.keys(message.data || {}),
+              //   messageSize: event.data.length
+              // });
               this.handleMessage(message);
             } catch (error) {
-              console.error('Failed to parse WebSocket message:', error);
+              console.error(`[WebSocket ${connectionId}] Failed to parse message`, {
+                error: error instanceof Error ? error.message : String(error),
+                data: event.data
+              });
             }
           };
 
           this.ws.onclose = (event) => {
-            console.log('WebSocket disconnected:', event.code, event.reason);
+            // console.log(`[WebSocket ${connectionId}] Disconnected`, {
+            //   code: event.code,
+            //   reason: event.reason,
+            //   wasClean: event.wasClean,
+            //   reconnectAttempts: this.reconnectAttempts,
+            //   maxReconnectAttempts: this.maxReconnectAttempts
+            // });
             this.isConnecting = false;
             
             if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -190,17 +217,27 @@ class WebSocketClient {
           };
 
           this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            console.error('WebSocket URL:', wsUrl);
+            console.error(`[WebSocket ${connectionId}] Error occurred`, {
+              error: error instanceof Error ? error.message : String(error),
+              wsUrl: wsUrl.replace(token, '[TOKEN]'),
+              readyState: this.ws?.readyState
+            });
             this.isConnecting = false;
             reject(error);
           };
 
         } catch (error) {
+          console.error(`[WebSocket ${connectionId}] Connection failed`, {
+            error: error instanceof Error ? error.message : String(error),
+            errorType: error instanceof Error ? error.constructor.name : typeof error
+          });
           this.isConnecting = false;
           reject(error);
         }
       }).catch(error => {
+        console.error(`[WebSocket ${connectionId}] Token retrieval failed`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
         this.isConnecting = false;
         reject(error);
       });
@@ -211,7 +248,7 @@ class WebSocketClient {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
     
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    // console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
     
     setTimeout(() => {
       this.connect(channelId).catch(error => {

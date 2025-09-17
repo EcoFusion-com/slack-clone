@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useApiClient, type Ticket } from "@/lib/api"
 import { useUser } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
+import { safeLength, safeArray } from "@/lib/safe-access"
 import { CreateTicketForm } from "./CreateTicketForm"
 import { TicketDetails } from "./TicketDetails"
 import { useWebSocketClient } from "@/lib/websocket"
@@ -90,7 +91,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
     
     // Set up periodic refresh every 5 minutes to ensure data persistence
     const refreshInterval = setInterval(() => {
-      console.log('Auto-refreshing tickets...')
+      // console.log('Auto-refreshing tickets...')
       loadTickets()
     }, 300000) // 5 minutes
     
@@ -122,16 +123,16 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
 
   // Listen for WebSocket events - only set up once
   useEffect(() => {
-    console.log('Setting up WebSocket event listeners')
+    // console.log('Setting up WebSocket event listeners')
 
     const handleTicketCreated = (data: any) => {
-      console.log('Received ticket_created event:', data)
+      // console.log('Received ticket_created event:', data)
       const newTicket = data.data.ticket
       
       // Check if we've already processed this ticket
       setProcessedTicketIds(prev => {
         if (prev.has(newTicket.id)) {
-          console.log('Ticket already processed, skipping duplicate:', newTicket.id)
+          // console.log('Ticket already processed, skipping duplicate:', newTicket.id)
           return prev
         }
         
@@ -143,10 +144,10 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
         setTickets(tickets => {
           const exists = tickets.some(ticket => ticket.id === newTicket.id)
           if (exists) {
-            console.log('Ticket already in list, skipping duplicate:', newTicket.id)
+            // console.log('Ticket already in list, skipping duplicate:', newTicket.id)
             return tickets
           }
-          console.log('Adding new ticket to list:', newTicket.id)
+          // console.log('Adding new ticket to list:', newTicket.id)
           return [newTicket, ...tickets]
         })
         
@@ -160,7 +161,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
     }
 
     const handleTicketUpdated = (data: any) => {
-      console.log('Received ticket_updated event:', data)
+      // console.log('Received ticket_updated event:', data)
       const updatedTicket = data.data.ticket
       setTickets(prev => prev.map(ticket => 
         ticket.id === updatedTicket.id ? updatedTicket : ticket
@@ -172,7 +173,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
     }
 
     const handleWebSocketReconnect = () => {
-      console.log('WebSocket reconnected, refreshing tickets')
+      // console.log('WebSocket reconnected, refreshing tickets')
       loadTickets()
     }
 
@@ -183,7 +184,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
 
     // Cleanup
     return () => {
-      console.log('Cleaning up WebSocket event listeners')
+      // console.log('Cleaning up WebSocket event listeners')
       wsClient.off('ticket_created', handleTicketCreated)
       wsClient.off('ticket_updated', handleTicketUpdated)
       wsClient.off('reconnect', handleWebSocketReconnect)
@@ -197,21 +198,21 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
   // Notify parent of ticket count changes
   useEffect(() => {
     if (onTicketCountChange) {
-      onTicketCountChange(tickets.length)
+      onTicketCountChange(safeLength(tickets))
     }
-  }, [tickets.length, onTicketCountChange])
+  }, [safeLength(tickets), onTicketCountChange])
 
   const loadTickets = async () => {
     // Prevent rapid successive calls
     if (isLoadingDebounced) {
-      console.log('Loading already in progress, skipping...')
+      // console.log('Loading already in progress, skipping...')
       return
     }
     
     try {
       setIsLoading(true)
       setIsLoadingDebounced(true)
-      console.log('Loading tickets for workspace:', safeWorkspaceId)
+      // console.log('Loading tickets for workspace:', safeWorkspaceId)
       
       const response = await apiClient.getTickets({
         workspace_id: safeWorkspaceId,
@@ -219,7 +220,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
         size: 100
       })
       
-      console.log('Tickets response:', response)
+      // console.log('Tickets response:', response)
       
       // Ensure we have a valid response with tickets array
       if (response && Array.isArray(response.tickets)) {
@@ -241,7 +242,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
           response.tickets.forEach(ticket => newSet.add(ticket.id))
           return newSet
         })
-        console.log('Loaded tickets:', response.tickets.length)
+        // console.log('Loaded tickets:', safeLength(response.tickets))
       } else {
         console.warn('Invalid tickets response:', response)
         setTickets([])
@@ -465,7 +466,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                 <Button
                   variant="outline"
                   onClick={() => {
-                    console.log('Manual refresh triggered')
+                    // console.log('Manual refresh triggered')
                     loadTickets()
                   }}
                   disabled={isLoading}
@@ -541,7 +542,7 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
 
           {/* Tickets List */}
           <div className="space-y-4">
-            {filteredTickets.length === 0 ? (
+            {safeLength(filteredTickets) === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -553,15 +554,15 @@ export function TicketCenter({ workspaceId = "1", onTicketCountChange }: TicketC
                     }
                   </p>
                   <div className="text-sm text-muted-foreground">
-                    <p>Total tickets in database: {tickets.length}</p>
+                    <p>Total tickets in database: {safeLength(tickets)}</p>
                     <p>Workspace ID: {safeWorkspaceId}</p>
                     <p>WebSocket connected: {wsClient.isConnected() ? 'Yes' : 'No'}</p>
-                    <p>Last API response: {tickets.length > 0 ? 'Success' : 'Empty response'}</p>
+                    <p>Last API response: {safeLength(tickets) > 0 ? 'Success' : 'Empty response'}</p>
                   </div>
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      console.log('Debug: Refreshing tickets manually')
+                      // console.log('Debug: Refreshing tickets manually')
                       loadTickets()
                     }}
                     className="mt-4"

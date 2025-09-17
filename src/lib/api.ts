@@ -4,8 +4,9 @@
  */
 
 import { useAuth } from "@clerk/clerk-react";
+import { config } from './config';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = config.apiBaseUrl;
 
 // Types for API responses
 export interface User {
@@ -272,6 +273,9 @@ class ApiClient {
     token?: string
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // API request started
     
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -290,15 +294,28 @@ class ApiClient {
     };
 
     try {
+      const startTime = performance.now();
       const response = await fetch(url, config);
+      const endTime = performance.now();
+      const duration = Math.round(endTime - startTime);
+      
+      // API response received
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
+        console.error(`[API ${requestId}] Request failed`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          url,
+          method: options.method || 'GET'
+        });
+        
         // Log structured error information for debugging
         if (errorData.error_code && errorData.hint) {
-          console.error(`API Error [${errorData.error_code}]:`, errorData.detail);
-          console.error(`Hint:`, errorData.hint);
+          console.error(`[API ${requestId}] Structured Error [${errorData.error_code}]:`, errorData.detail);
+          console.error(`[API ${requestId}] Hint:`, errorData.hint);
         }
         
         const errorMessage = typeof errorData.detail === 'string' 
@@ -310,11 +327,35 @@ class ApiClient {
       // Handle empty responses
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        return await response.json();
+        const data = await response.json();
+        // console.log(`[API ${requestId}] Success`, {
+        //   dataKeys: Object.keys(data),
+        //   dataType: typeof data,
+        //   isArray: Array.isArray(data)
+        // });
+        
+        // Handle new consistent response format
+        if (data && typeof data === 'object' && 'success' in data) {
+          if (data.success) {
+            return data.data || data;
+          } else {
+            throw new Error(data.error || 'API request failed');
+          }
+        }
+        
+        return data;
       }
       
+      // console.log(`[API ${requestId}] Empty response`);
       return {} as T;
     } catch (error) {
+      console.error(`[API ${requestId}] Request error`, {
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        url,
+        method: options.method || 'GET'
+      });
+      
       if (error instanceof Error) {
         throw error;
       }
@@ -591,13 +632,8 @@ export function useApiClient() {
   return {
     async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
       const token = await getToken();
-      if (token) {
-        options.headers = {
-          ...options.headers,
-          'Authorization': `Bearer ${token}`
-        };
-      }
-      return apiClient.request<T>(endpoint, options);
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.request<T>(endpoint, options, token);
     },
     
     // Convenience methods that automatically include auth
@@ -678,57 +714,81 @@ export function useApiClient() {
     async getMessages(channelId: string, page?: number, limit?: number): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.getMessages(channelId, page, limit, token);
+      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages?channel_id=${channelId}&page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
     },
     
     async sendMessage(data: MessageCreate): Promise<Message> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.sendMessage(data, token);
+      return apiClient.request<Message>('/api/v1/messages', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, token);
     },
     
     async addMessageReaction(messageId: string, emoji: string): Promise<{ message: string; reaction_id: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.addMessageReaction(messageId, emoji, token);
+      return apiClient.request<{ message: string; reaction_id: string }>(`/api/v1/messages/${messageId}/reactions`, {
+        method: 'POST',
+        body: JSON.stringify({ emoji }),
+      }, token);
     },
     
     async removeMessageReaction(messageId: string, emoji: string): Promise<{ message: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.removeMessageReaction(messageId, emoji, token);
+      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}/reactions`, {
+        method: 'DELETE',
+        body: JSON.stringify({ emoji }),
+      }, token);
     },
     
     async editMessage(messageId: string, content: string): Promise<Message> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.editMessage(messageId, content, token);
+      return apiClient.request<Message>(`/api/v1/messages/${messageId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }, token);
     },
     
     async deleteMessage(messageId: string): Promise<{ message: string }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      await apiClient.deleteMessage(messageId, token);
-      return { message: "Message deleted successfully" };
+      return apiClient.request<{ message: string }>(`/api/v1/messages/${messageId}`, {
+        method: 'DELETE',
+      }, token);
     },
     
     async getMessageReplies(messageId: string, page?: number, limit?: number): Promise<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.getMessageReplies(messageId, page, limit, token);
+      return apiClient.request<{ messages: Message[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/messages/${messageId}/replies?page=${page || 1}&size=${limit || 50}`, { method: 'GET' }, token);
     },
     
     async getChannels(workspaceId: string): Promise<Channel[]> {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      const response = await apiClient.getChannels(workspaceId, token);
+      const response = await apiClient.request<{ channels: Channel[]; total: number; page: number; size: number; pages: number; has_more: boolean }>(`/api/v1/channels?workspace_id=${workspaceId}`, { method: 'GET' }, token);
       return response.channels || [];
     },
     
     async createChannel(workspaceId: string, data: { name: string; description?: string; type?: string }): Promise<Channel> {
+      // Transform the data to match backend schema
+      const channelData = {
+        name: data.name,
+        description: data.description,
+        channel_type: data.type || 'public',
+        workspace_id: workspaceId
+      };
+      
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
-      return apiClient.createChannel(workspaceId, data, token);
+      return apiClient.request<Channel>(`/api/v1/channels?workspace_id=${workspaceId}`, {
+        method: 'POST',
+        body: JSON.stringify(channelData),
+      }, token);
     },
     
     async getChannel(channelId: string): Promise<Channel> {

@@ -21,19 +21,15 @@ export function useWorkspace() {
         // Use the first workspace as the current one
         setCurrentWorkspaceId(workspaces[0].id)
       } else {
-        // No workspaces exist, create a default one
-        console.log('No workspaces found, creating default workspace...')
-        const defaultWorkspace = await apiClient.createWorkspace({
-          name: "My Workspace",
-          description: "Default workspace for your team",
-          slug: "my-workspace"
-        })
-        setCurrentWorkspaceId(defaultWorkspace.id)
+        // No workspaces found, use the default workspace ID
+        // The default workspace should exist from database seeding
+        // console.log('No workspaces found, using default workspace...')
+        setCurrentWorkspaceId("cmfmb07d90002f8qs44926mza") // Use the actual default workspace ID
       }
     } catch (error) {
       console.error('Failed to load current workspace:', error)
-      // Set to null instead of fallback to "1"
-      setCurrentWorkspaceId(null)
+      // Fallback to default workspace ID
+      setCurrentWorkspaceId("cmfmb07d90002f8qs44926mza")
     } finally {
       setIsLoading(false)
     }

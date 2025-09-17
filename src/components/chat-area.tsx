@@ -43,9 +43,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 interface MessageItemProps {
   message: Message
   showAvatar?: boolean
+  onMessageUpdate?: () => void
 }
 
-function MessageItem({ message, showAvatar = true }: MessageItemProps) {
+function MessageItem({ message, showAvatar = true, onMessageUpdate }: MessageItemProps) {
   const [showActions, setShowActions] = useState(false)
   const [isReacting, setIsReacting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -134,6 +135,7 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
         description: "Your message has been edited",
       })
       setIsEditing(false)
+      onMessageUpdate?.()
     } catch (error) {
       console.error('Failed to edit message:', error)
       toast({
@@ -192,6 +194,26 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!message.isOwn) return
+
+    try {
+      await apiClient.deleteMessage(message.id)
+      toast({
+        title: "Message deleted",
+        description: "Your message has been deleted",
+      })
+      onMessageUpdate?.()
+    } catch (error) {
+      console.error('Failed to delete message:', error)
+      toast({
+        title: "Failed to delete message",
+        description: "Could not delete your message",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div 
       className={`group px-4 py-2 hover:bg-message-hover relative ${
@@ -238,12 +260,15 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
           {isEditing ? (
             <div className="space-y-2">
               <Textarea
+                id="message-edit"
+                name="editContent"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 onKeyDown={handleEditKeyDown}
                 className="min-h-[60px] resize-none"
                 disabled={isSaving}
                 autoFocus
+                autoComplete="off"
               />
               <div className="flex items-center space-x-2">
                 <Button
@@ -321,7 +346,7 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
           {showReplies && replies.length > 0 && (
             <div className="mt-2 ml-4 border-l-2 border-muted pl-4 space-y-2">
               {replies.map((reply) => (
-                <MessageItem key={reply.id} message={reply} showAvatar={false} />
+                <MessageItem key={reply.id} message={reply} showAvatar={false} onMessageUpdate={onMessageUpdate} />
               ))}
             </div>
           )}
@@ -378,6 +403,10 @@ function MessageItem({ message, showAvatar = true }: MessageItemProps) {
                     <Edit className="h-4 w-4 mr-2" />
                     Edit message
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                    <X className="h-4 w-4 mr-2" />
+                    Delete message
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
               )}
@@ -423,7 +452,9 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     isSendingMessage,
     sendMessage,
     typingUsers,
-    isConnected
+    isConnected,
+    currentChannel,
+    refreshMessages
   } = useChat({ 
     workspaceId, 
     channelId: channelId || undefined 
@@ -535,6 +566,7 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
                 key={msg.id} 
                 message={msg} 
                 showAvatar={showAvatar}
+                onMessageUpdate={refreshMessages}
               />
             )
             })
@@ -567,13 +599,16 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
           
           <div className="flex-1 relative">
             <Textarea
-              placeholder="Message #general"
+              id="message-input"
+              name="message"
+              placeholder={`Message #${currentChannel?.name || 'channel'}`}
               value={message}
               onChange={handleTyping}
               onKeyDown={handleKeyPress}
               className="min-h-[36px] max-h-32 resize-none pr-20 bg-background border-border"
               rows={1}
-                disabled={isSendingMessage}
+              disabled={isSendingMessage}
+              autoComplete="off"
             />
             
             <div className="absolute right-2 bottom-2 flex items-center space-x-1">

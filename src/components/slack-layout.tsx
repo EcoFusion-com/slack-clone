@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser, SignInButton } from "@clerk/clerk-react"
 import { SlackSidebar } from "@/components/slack-sidebar"
 import { ChatHeader } from "@/components/chat-header"
@@ -11,6 +11,8 @@ import { PeopleAndGroups } from "@/components/people/PeopleAndGroups"
 import { ThreadsView } from "@/components/threads/ThreadsView"
 import { MentionsAndReactions } from "@/components/mentions/MentionsAndReactions"
 import { useWorkspace } from "@/hooks/use-workspace"
+import { useChat } from "@/hooks/use-chat"
+import ErrorBoundary from "./ErrorBoundary"
 
 interface SlackLayoutProps {
   children?: React.ReactNode
@@ -20,19 +22,37 @@ type ViewType = 'chat' | 'tickets' | 'threads' | 'mentions' | 'people' | 'admin'
 
 export function SlackLayout({ children }: SlackLayoutProps) {
   const { isSignedIn, user, isLoaded } = useUser()
-  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>("1")
+  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined)
   const [currentView, setCurrentView] = useState<ViewType>('chat')
   const [ticketCount, setTicketCount] = useState<number>(0)
   const { currentWorkspaceId, isLoading: workspaceLoading } = useWorkspace()
+  
+  // Use chat hook to get channel information
+  const { currentChannel, channels } = useChat({ 
+    workspaceId: currentWorkspaceId || "1", 
+    channelId: selectedChannelId 
+  })
 
   const handleChannelSelect = (channelId: string) => {
     setSelectedChannelId(channelId)
     setCurrentView('chat')
+    // The useChat hook will automatically handle channel selection
   }
 
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view)
   }
+
+  // Auto-select first channel when channels are loaded
+  useEffect(() => {
+    if (selectedChannelId === undefined && currentWorkspaceId) {
+      // Try to get the selected channel from localStorage first
+      const savedChannelId = localStorage.getItem('selectedChannelId')
+      if (savedChannelId) {
+        setSelectedChannelId(savedChannelId)
+      }
+    }
+  }, [selectedChannelId, currentWorkspaceId])
 
   const renderMainContent = () => {
     if (children) {
@@ -53,18 +73,42 @@ export function SlackLayout({ children }: SlackLayoutProps) {
 
     switch (currentView) {
       case 'tickets':
-        return <TicketCenter workspaceId={currentWorkspaceId || "1"} onTicketCountChange={setTicketCount} />
+        return (
+          <ErrorBoundary level="component">
+            <TicketCenter workspaceId={currentWorkspaceId || "1"} onTicketCountChange={setTicketCount} />
+          </ErrorBoundary>
+        )
       case 'admin':
-        return <AdminDashboard />
+        return (
+          <ErrorBoundary level="component">
+            <AdminDashboard />
+          </ErrorBoundary>
+        )
       case 'people':
-        return <PeopleAndGroups />
+        return (
+          <ErrorBoundary level="component">
+            <PeopleAndGroups />
+          </ErrorBoundary>
+        )
       case 'threads':
-        return <ThreadsView />
+        return (
+          <ErrorBoundary level="component">
+            <ThreadsView />
+          </ErrorBoundary>
+        )
       case 'mentions':
-        return <MentionsAndReactions />
+        return (
+          <ErrorBoundary level="component">
+            <MentionsAndReactions />
+          </ErrorBoundary>
+        )
       case 'chat':
       default:
-        return <ChatArea channelId={selectedChannelId} workspaceId={currentWorkspaceId || "1"} />
+        return (
+          <ErrorBoundary level="component">
+            <ChatArea channelId={selectedChannelId} workspaceId={currentWorkspaceId || "1"} />
+          </ErrorBoundary>
+        )
     }
   }
 
@@ -117,12 +161,12 @@ export function SlackLayout({ children }: SlackLayoutProps) {
         {/* Header */}
         <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center space-x-4 min-w-0">
-            {currentView === 'chat' && selectedChannelId && (
+            {currentView === 'chat' && selectedChannelId && currentChannel && (
               <ChatHeader
-                channelName="general"
+                channelName={currentChannel.name}
                 channelType="channel"
-                memberCount={42}
-                topic="Company announcements and general discussion"
+                memberCount={currentChannel.member_count || 0}
+                topic={currentChannel.description || "No description"}
               />
             )}
             {currentView === 'tickets' && (
