@@ -10,6 +10,7 @@ import { AdminDashboard } from "@/components/admin/AdminDashboard"
 import { PeopleAndGroups } from "@/components/people/PeopleAndGroups"
 import { ThreadsView } from "@/components/threads/ThreadsView"
 import { MentionsAndReactions } from "@/components/mentions/MentionsAndReactions"
+import { Dashboard } from "@/pages/dashboard"
 import { useWorkspace } from "@/hooks/use-workspace"
 import { useChat } from "@/hooks/use-chat"
 import ErrorBoundary from "./ErrorBoundary"
@@ -18,12 +19,12 @@ interface SlackLayoutProps {
   children?: React.ReactNode
 }
 
-type ViewType = 'chat' | 'tickets' | 'threads' | 'mentions' | 'people' | 'admin'
+type ViewType = 'chat' | 'tickets' | 'threads' | 'mentions' | 'people' | 'admin' | 'dashboard'
 
 export function SlackLayout({ children }: SlackLayoutProps) {
   const { isSignedIn, user, isLoaded } = useUser()
   const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined)
-  const [currentView, setCurrentView] = useState<ViewType>('chat')
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard') // Default to dashboard
   const [ticketCount, setTicketCount] = useState<number>(0)
   const { currentWorkspaceId, isLoading: workspaceLoading } = useWorkspace()
   
@@ -72,6 +73,12 @@ export function SlackLayout({ children }: SlackLayoutProps) {
     }
 
     switch (currentView) {
+      case 'dashboard':
+        return (
+          <ErrorBoundary level="component">
+            <Dashboard workspaceId={currentWorkspaceId || "1"} />
+          </ErrorBoundary>
+        )
       case 'tickets':
         return (
           <ErrorBoundary level="component">
@@ -128,13 +135,11 @@ export function SlackLayout({ children }: SlackLayoutProps) {
   if (!isSignedIn) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Slack Clone</h1>
-          <p className="text-muted-foreground mb-6">
-            Please sign in to access your workspace
-          </p>
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Welcome to Slack Clone</h1>
+          <p className="text-muted-foreground">Please sign in to continue</p>
           <SignInButton mode="modal">
-            <button className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90">
+            <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
               Sign In
             </button>
           </SignInButton>
@@ -144,66 +149,32 @@ export function SlackLayout({ children }: SlackLayoutProps) {
   }
 
   return (
-    <div className="h-screen flex bg-background overflow-hidden">
+    <div className="h-screen flex bg-background">
       {/* Sidebar */}
-      <div className="w-64 bg-sidebar-background border-r border-border flex flex-col shrink-0">
-        <SlackSidebar
-          selectedChannelId={selectedChannelId}
-          onChannelSelect={handleChannelSelect}
-          currentView={currentView}
-          onViewChange={handleViewChange}
-          ticketCount={ticketCount}
-        />
-      </div>
-
-      {/* Main Content Area */}
+      <SlackSidebar 
+        selectedChannelId={selectedChannelId}
+        onChannelSelect={handleChannelSelect}
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        ticketCount={ticketCount}
+      />
+      
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="h-12 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
-          <div className="flex items-center space-x-4 min-w-0">
-            {currentView === 'chat' && selectedChannelId && currentChannel && (
-              <ChatHeader
-                channelName={currentChannel.name}
-                channelType="channel"
-                memberCount={currentChannel.member_count || 0}
-                topic={currentChannel.description || "No description"}
-              />
-            )}
-            {currentView === 'tickets' && (
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-semibold">Tickets</h1>
-              </div>
-            )}
-            {currentView === 'admin' && (
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-semibold">Admin Dashboard</h1>
-              </div>
-            )}
-            {currentView === 'people' && (
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-semibold">People & Groups</h1>
-              </div>
-            )}
-            {currentView === 'threads' && (
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-semibold">Threads</h1>
-              </div>
-            )}
-            {currentView === 'mentions' && (
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-semibold">Mentions & Reactions</h1>
-              </div>
-            )}
-          </div>
-
-          {/* Empty space for layout balance */}
-          <div className="flex items-center space-x-4 shrink-0">
-            {/* User info moved to sidebar */}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Chat Header - only show for chat view */}
+        {currentView === 'chat' && currentChannel && (
+          <ChatHeader 
+            channelName={currentChannel.name}
+            channelType="channel"
+            memberCount={0}
+            topic={currentChannel.description || undefined}
+            isStarred={false}
+            isNotificationEnabled={true}
+          />
+        )}
+        
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-hidden">
           {renderMainContent()}
         </div>
       </div>

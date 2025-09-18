@@ -478,7 +478,7 @@ class ApiClient {
   async getTickets(params?: {
     page?: number;
     size?: number;
-    status?: string[];
+    status?: string[];  // Keep this for frontend interface
     priority?: string[];
     category?: string;
     assigned_to?: string;
@@ -491,10 +491,13 @@ class ApiClient {
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
+          // Map frontend parameter names to backend parameter names
+          const backendKey = key === 'status' ? 'ticket_status' : key;
+          
           if (Array.isArray(value)) {
-            value.forEach(v => searchParams.append(key, v));
+            value.forEach(v => searchParams.append(backendKey, v));
           } else {
-            searchParams.append(key, String(value));
+            searchParams.append(backendKey, String(value));
           }
         }
       });
