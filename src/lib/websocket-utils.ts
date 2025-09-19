@@ -9,8 +9,11 @@
  * @returns WebSocket URL with appropriate protocol (ws:// or wss://)
  */
 export const getWebSocketUrl = (backendUrl?: string, wsPath: string = '/ws'): string => {
-  // Use environment variable or fallback to config
-  const url = backendUrl || (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+  // Use environment variable or config - no localhost fallback
+  const url = backendUrl || (import.meta as any).env?.VITE_API_BASE_URL;
+  if (!url) {
+    throw new Error('VITE_API_BASE_URL environment variable is required');
+  }
   
   // Extract host from URL
   const host = url.replace(/^https?:\/\//, '');

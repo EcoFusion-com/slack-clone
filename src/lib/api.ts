@@ -317,7 +317,7 @@ class ApiClient {
     const config: RequestInit = {
       ...options,
       headers,
-      credentials: 'include', // Include cookies for Clerk authentication
+      credentials: token ? 'include' : 'same-origin', // Include credentials only for authenticated requests
     };
 
     try {
