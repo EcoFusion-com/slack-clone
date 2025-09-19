@@ -4,13 +4,13 @@
 
 /**
  * Generates WebSocket URL with automatic protocol detection
- * @param backendUrl - The backend URL (e.g., http://localhost:3001 or https://api.example.com)
+ * @param backendUrl - The backend URL (e.g., http://localhost:8000 or https://api.example.com)
  * @param wsPath - The WebSocket path (default: '/ws')
  * @returns WebSocket URL with appropriate protocol (ws:// or wss://)
  */
 export const getWebSocketUrl = (backendUrl?: string, wsPath: string = '/ws'): string => {
-  const defaultBackendUrl = 'http://localhost:3001';
-  const url = backendUrl || (import.meta as any).env?.VITE_BACKEND_URL || defaultBackendUrl;
+  // Use environment variable or fallback to config
+  const url = backendUrl || (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
   
   // Extract host from URL
   const host = url.replace(/^https?:\/\//, '');

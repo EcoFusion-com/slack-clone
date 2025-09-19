@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Bell, User } from "lucide-react"
+import { Search, User } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useUser } from "@clerk/clerk-react"
 import { useApiClient } from "@/lib/api"
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown"
 
 interface HeaderProps {
   onSearch?: (query: string) => void
@@ -50,20 +50,7 @@ export function Header({ onSearch, className }: HeaderProps) {
 
       <div className="flex items-center space-x-4">
         {/* Notifications */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
-          >
-            3
-          </Badge>
-        </Button>
+        <NotificationDropdown />
 
         {/* User Profile */}
         <div className="flex items-center space-x-3">

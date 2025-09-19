@@ -1,0 +1,30 @@
+# ===========================================
+# Frontend - Production Environment
+# ===========================================
+# For production testing with https://dev-slack-api.vertexaitec.com
+# Usage: docker compose --env-file .env.production -f docker-compose.prod.yml up
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_WEBSOCKET_URL: ${VITE_WEBSOCKET_URL}
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_LOG_LEVEL: ${VITE_LOG_LEVEL}
+        VITE_ENABLE_DEBUG_LOGGING: ${VITE_ENABLE_DEBUG_LOGGING}
+        VITE_NODE_ENV: ${VITE_NODE_ENV}
+    container_name: slack_frontend_prod
+    env_file: .env.production
+    ports:
+      - "80:80"
+    networks:
+      - frontend_network_prod
+    restart: unless-stopped
+
+networks:
+  frontend_network_prod:
+    driver: bridge

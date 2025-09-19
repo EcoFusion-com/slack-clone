@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useApiClient, type Channel, type Workspace, type User as UserType } from "@/lib/api"
 import { useAuth, useUser, UserButton } from "@clerk/clerk-react"
+import { useNotifications } from "@/hooks/use-notifications"
 import { useToast } from "@/hooks/use-toast"
 import { useChat } from "@/hooks/use-chat"
 import { useWorkspace } from "@/hooks/use-workspace"
@@ -83,6 +84,7 @@ interface SlackSidebarProps {
 }
 
 export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, onViewChange, ticketCount = 0 }: SlackSidebarProps) {
+  const { stats } = useNotifications()
   const [searchQuery, setSearchQuery] = useState("")
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -253,7 +255,11 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
           >
             <Bell className="h-4 w-4 mr-3" />
             Mentions & reactions
-            <Badge className="ml-auto h-4 text-xs bg-accent text-accent-foreground">7</Badge>
+            {stats.unread > 0 && (
+              <Badge className="ml-auto h-4 text-xs bg-accent text-accent-foreground">
+                {stats.unread > 99 ? '99+' : stats.unread}
+              </Badge>
+            )}
           </Button>
           <Button 
             variant="ghost" 

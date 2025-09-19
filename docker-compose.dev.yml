@@ -1,0 +1,33 @@
+# ===========================================
+# Frontend - Development Environment
+# ===========================================
+# For local development with localhost backend
+# Usage: docker compose --env-file .env.development -f docker-compose.dev.yml up
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: slack_frontend_dev
+    env_file: .env.development
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_WEBSOCKET_URL: ${VITE_WEBSOCKET_URL}
+      VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+      VITE_LOG_LEVEL: ${VITE_LOG_LEVEL}
+      VITE_ENABLE_DEBUG_LOGGING: ${VITE_ENABLE_DEBUG_LOGGING}
+      VITE_NODE_ENV: ${VITE_NODE_ENV}
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - frontend_network_dev
+    restart: unless-stopped
+
+networks:
+  frontend_network_dev:
+    driver: bridge

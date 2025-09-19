@@ -234,6 +234,33 @@ export interface TicketCommentResponse {
   updated_at: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  entityId?: string;
+  entityType?: string;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  total: number;
+  unread_count: number;
+  page: number;
+  size: number;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  by_type: Record<string, number>;
+}
+
 export interface WorkspaceCreate {
   name: string;
   description?: string;
@@ -598,6 +625,54 @@ class ApiClient {
     }, token);
   }
 
+  // Notification methods
+  async getNotifications(page: number = 1, size: number = 20, unreadOnly: boolean = false, token: string): Promise<NotificationListResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+      unread_only: unreadOnly.toString()
+    });
+    return this.request<NotificationListResponse>(`/api/v1/notifications?${params}`, {
+      method: 'GET',
+    }, token);
+  }
+
+  async getNotificationStats(token: string): Promise<NotificationStats> {
+    return this.request<NotificationStats>(`/api/v1/notifications/stats`, {
+      method: 'GET',
+    }, token);
+  }
+
+  async markNotificationsRead(notificationIds: string[], token: string): Promise<{ message: string; data: { marked_count: number } }> {
+    return this.request<{ message: string; data: { marked_count: number } }>(`/api/v1/notifications/mark-read`, {
+      method: 'POST',
+      body: JSON.stringify({ notification_ids: notificationIds }),
+    }, token);
+  }
+
+  async markAllNotificationsRead(token: string): Promise<{ message: string; data: { marked_count: number } }> {
+    return this.request<{ message: string; data: { marked_count: number } }>(`/api/v1/notifications/mark-all-read`, {
+      method: 'POST',
+    }, token);
+  }
+
+  async deleteNotification(notificationId: string, token: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/v1/notifications/${notificationId}`, {
+      method: 'DELETE',
+    }, token);
+  }
+
+  // User search for mentions
+  async searchUsers(query: string, limit: number = 10, token: string): Promise<{ users: User[]; total: number; query: string }> {
+    const params = new URLSearchParams({
+      q: query,
+      limit: limit.toString()
+    });
+    return this.request<{ users: User[]; total: number; query: string }>(`/api/v1/users/search?${params}`, {
+      method: 'GET',
+    }, token);
+  }
+
   async getTicketDashboard(workspaceId?: string, token?: string): Promise<{
     stats: {
       total: number;
@@ -862,6 +937,44 @@ export function useApiClient() {
       const token = await getToken();
       if (!token) throw new Error('No authentication token available');
       return apiClient.getTicketDashboard(workspaceId, token);
+    },
+
+    // Notification methods
+    async getNotifications(page: number = 1, size: number = 20, unreadOnly: boolean = false): Promise<NotificationListResponse> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.getNotifications(page, size, unreadOnly, token);
+    },
+
+    async getNotificationStats(): Promise<NotificationStats> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.getNotificationStats(token);
+    },
+
+    async markNotificationsRead(notificationIds: string[]): Promise<{ message: string; data: { marked_count: number } }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.markNotificationsRead(notificationIds, token);
+    },
+
+    async markAllNotificationsRead(): Promise<{ message: string; data: { marked_count: number } }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.markAllNotificationsRead(token);
+    },
+
+    async deleteNotification(notificationId: string): Promise<{ message: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.deleteNotification(notificationId, token);
+    },
+
+    // User search for mentions
+    async searchUsers(query: string, limit: number = 10): Promise<{ users: User[]; total: number; query: string }> {
+      const token = await getToken();
+      if (!token) throw new Error('No authentication token available');
+      return apiClient.searchUsers(query, limit, token);
     }
   };
 }
