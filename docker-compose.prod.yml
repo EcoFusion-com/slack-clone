@@ -20,7 +20,7 @@ services:
     container_name: slack_frontend_prod
     env_file: .env.production
     ports:
-      - "80:80"
+      - "${VITE_FRONTEND_PORT:-80}:${VITE_FRONTEND_PORT:-80}"
     networks:
       - frontend_network_prod
     restart: unless-stopped
