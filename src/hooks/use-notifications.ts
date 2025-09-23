@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApiClient } from '@/lib/api'
 import { getWebSocketUrlFromEnv } from '@/lib/websocket-utils'
+import { useAuth } from '@clerk/clerk-react'
 
 interface Notification {
   id: string
@@ -27,6 +28,7 @@ export function useNotifications() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
+  const { isLoaded, isSignedIn } = useAuth()
 
   const loadNotifications = async (page = 1, size = 20, unreadOnly = false) => {
     try {
@@ -117,9 +119,18 @@ export function useNotifications() {
   }
 
   useEffect(() => {
-    loadNotifications()
-    loadStats()
-  }, [])
+    if (isLoaded && isSignedIn) {
+      // Load notifications first, then stats after a delay
+      const loadDataSequentially = async () => {
+        await loadNotifications()
+        // Wait a bit before loading stats to prevent overwhelming the server
+        setTimeout(() => {
+          loadStats()
+        }, 300)
+      }
+      loadDataSequentially()
+    }
+  }, [isLoaded, isSignedIn])
 
   // WebSocket connection for real-time notifications - DISABLED for now
   // TODO: Implement proper WebSocket connection for notifications

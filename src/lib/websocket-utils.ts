@@ -9,20 +9,26 @@
  * @returns WebSocket URL with appropriate protocol (ws:// or wss://)
  */
 export const getWebSocketUrl = (backendUrl?: string, wsPath: string = '/ws'): string => {
-  // Use environment variable or config - no localhost fallback
+  // Use environment variable for WebSocket URL if available
+  const wsUrl = (import.meta as any).env?.VITE_WEBSOCKET_URL;
+  if (wsUrl) {
+    return wsUrl;
+  }
+  
+  // Fallback to generating from API URL
   const url = backendUrl || (import.meta as any).env?.VITE_API_BASE_URL;
   if (!url) {
-    throw new Error('VITE_API_BASE_URL environment variable is required');
+    throw new Error('VITE_API_BASE_URL or VITE_WEBSOCKET_URL environment variable is required');
   }
   
   // Extract host from URL
   const host = url.replace(/^https?:\/\//, '');
   
-  // Security: Always use wss:// for HTTPS, only ws:// for localhost development
+  // Security: Always use wss:// for HTTPS, only ws:// for development
   const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('0.0.0.0');
   const isHttps = window.location.protocol === "https:" || url.startsWith('https://');
   
-  // Use wss:// for HTTPS or non-localhost, ws:// only for localhost development
+  // Use wss:// for HTTPS or non-localhost, ws:// only for development
   const wsProtocol = (isHttps || !isLocalhost) ? "wss:" : "ws:";
   
   return `${wsProtocol}//${host}${wsPath}`;

@@ -114,10 +114,15 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
     channelId: selectedChannelId 
   })
 
-  // Load workspaces on mount
+  // Load workspaces on mount only when user is authenticated
   useEffect(() => {
-    loadWorkspaces()
-  }, [])
+    if (user) {
+      // Add a delay to prevent overwhelming the server with simultaneous requests
+      setTimeout(() => {
+        loadWorkspaces()
+      }, 400)
+    }
+  }, [user])
 
   const loadWorkspaces = async () => {
     try {

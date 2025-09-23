@@ -289,9 +289,47 @@ export interface MessageCreate {
 // API Client Class
 class ApiClient {
   private baseURL: string;
+  private requestQueue: Array<() => Promise<any>> = [];
+  private isProcessingQueue = false;
+  private requestDelay = 100; // 100ms delay between requests
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
+  }
+
+  // Throttle requests to prevent overwhelming the server
+  private async throttleRequest<T>(requestFn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push(async () => {
+        try {
+          const result = await requestFn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      this.processQueue();
+    });
+  }
+
+  private async processQueue() {
+    if (this.isProcessingQueue || this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    
+    while (this.requestQueue.length > 0) {
+      const request = this.requestQueue.shift();
+      if (request) {
+        await request();
+        // Add delay between requests to prevent rate limiting
+        await new Promise(resolve => setTimeout(resolve, this.requestDelay));
+      }
+    }
+    
+    this.isProcessingQueue = false;
   }
 
   public async request<T>(
@@ -299,32 +337,33 @@ class ApiClient {
     options: RequestInit = {},
     token?: string
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // API request started
-    
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+    return this.throttleRequest(async () => {
+      const url = `${this.baseURL}${endpoint}`;
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // API request started
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
 
-    // Add authorization header if token is provided
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+      // Add authorization header if token is provided
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-    const config: RequestInit = {
-      ...options,
-      headers,
-      credentials: token ? 'include' : 'same-origin', // Include credentials only for authenticated requests
-    };
+      const config: RequestInit = {
+        ...options,
+        headers,
+        credentials: 'include', // Always include credentials for CORS compatibility
+      };
 
-    try {
-      const startTime = performance.now();
-      const response = await fetch(url, config);
-      const endTime = performance.now();
-      const duration = Math.round(endTime - startTime);
+      try {
+        const startTime = performance.now();
+        const response = await fetch(url, config);
+        const endTime = performance.now();
+        const duration = Math.round(endTime - startTime);
       
       // API response received
       
@@ -388,6 +427,7 @@ class ApiClient {
       }
       throw new Error('An unexpected error occurred');
     }
+    });
   }
 
   // User endpoints

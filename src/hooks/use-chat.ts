@@ -3,6 +3,7 @@ import { useApiClient, type Message, type Channel, type User } from '@/lib/api'
 import { useWebSocketClient } from '@/lib/websocket'
 import { useToast } from '@/hooks/use-toast'
 import { useErrorHandler } from './use-error-handler'
+import { useAuth } from '@clerk/clerk-react'
 
 interface UseChatOptions {
   workspaceId: string
@@ -37,7 +38,8 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
   // Stabilize workspaceId to prevent infinite loops
   const safeWorkspaceId = useMemo(() => workspaceId?.toString() || null, [workspaceId])
   
-  // Authentication handled by useApiClient
+  // Authentication state
+  const { isLoaded, isSignedIn } = useAuth()
   
   // Error handling
   const { handleError, handleApiError, handleWebSocketError } = useErrorHandler()
@@ -323,18 +325,22 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
     }
   }, [currentChannel?.id, wsClient]) // Only depend on channel ID, not the entire channel object
   
-  // Load current user on mount
+  // Load data sequentially to prevent request storms
   useEffect(() => {
-    loadCurrentUser()
-  }, [loadCurrentUser])
-  
-  // Load data on mount and when workspace changes
-  useEffect(() => {
-    // Only load channels if we have a valid workspace ID (not null/undefined)
-    if (safeWorkspaceId) {
-      loadChannels()
+    if (isLoaded && isSignedIn) {
+      // Load user first, then channels after a delay
+      const loadDataSequentially = async () => {
+        await loadCurrentUser()
+        // Wait a bit before loading channels to prevent overwhelming the server
+        setTimeout(() => {
+          if (safeWorkspaceId) {
+            loadChannels()
+          }
+        }, 200)
+      }
+      loadDataSequentially()
     }
-  }, [safeWorkspaceId]) // Only depend on safeWorkspaceId, not loadChannels
+  }, [isLoaded, isSignedIn, safeWorkspaceId, loadCurrentUser, loadChannels])
   
   // Handle channelId prop changes from parent component
   useEffect(() => {

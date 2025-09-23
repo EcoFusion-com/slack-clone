@@ -20,7 +20,7 @@ services:
       VITE_ENABLE_DEBUG_LOGGING: ${VITE_ENABLE_DEBUG_LOGGING}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
     ports:
-      - "${VITE_FRONTEND_PORT:-5173}:${VITE_FRONTEND_PORT:-5173}"
+      - "${VITE_FRONTEND_PORT:-5173}:${VITE_FRONTEND_CONTAINER_PORT:-5173}"
     volumes:
       - .:/app
       - /app/node_modules

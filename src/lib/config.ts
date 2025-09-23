@@ -12,9 +12,8 @@ interface Config {
 }
 
 function validateConfig(): Config {
+  // Only require Clerk key, others have defaults
   const requiredEnvVars = [
-    'VITE_API_BASE_URL',
-    'VITE_WEBSOCKET_URL',
     'VITE_CLERK_PUBLISHABLE_KEY'
   ];
 
@@ -28,25 +27,30 @@ function validateConfig(): Config {
   }
 
   const config: Config = {
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
-    websocketUrl: import.meta.env.VITE_WEBSOCKET_URL,
-    clerkPublishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+    // Use environment variables for all URLs
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
+    websocketUrl: import.meta.env.VITE_WEBSOCKET_URL || '',
+    clerkPublishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || '',
     environment: (import.meta.env.MODE as Config['environment']) || 'development',
     logLevel: (import.meta.env.VITE_LOG_LEVEL as Config['logLevel']) || 'info',
     enableDebugLogging: import.meta.env.VITE_ENABLE_DEBUG_LOGGING === 'true' || import.meta.env.MODE === 'development'
   };
 
-  // Validate URLs
-  try {
-    new URL(config.apiBaseUrl);
-  } catch {
-    throw new Error(`Invalid API base URL: ${config.apiBaseUrl}`);
+  // Validate URLs (skip validation for relative paths used with Vite proxy)
+  if (config.apiBaseUrl.startsWith('http://') || config.apiBaseUrl.startsWith('https://')) {
+    try {
+      new URL(config.apiBaseUrl);
+    } catch {
+      throw new Error(`Invalid API base URL: ${config.apiBaseUrl}`);
+    }
   }
 
-  try {
-    new URL(config.websocketUrl);
-  } catch {
-    throw new Error(`Invalid WebSocket URL: ${config.websocketUrl}`);
+  if (config.websocketUrl && (config.websocketUrl.startsWith('ws://') || config.websocketUrl.startsWith('wss://'))) {
+    try {
+      new URL(config.websocketUrl);
+    } catch {
+      throw new Error(`Invalid WebSocket URL: ${config.websocketUrl}`);
+    }
   }
 
   // Validate Clerk key format
@@ -55,14 +59,14 @@ function validateConfig(): Config {
   }
 
   // Log configuration (without sensitive data)
-  // console.log('Configuration loaded:', {
-  //   apiBaseUrl: config.apiBaseUrl,
-  //   websocketUrl: config.websocketUrl,
-  //   environment: config.environment,
-  //   logLevel: config.logLevel,
-  //   enableDebugLogging: config.enableDebugLogging,
-  //   clerkKeyPrefix: config.clerkPublishableKey.substring(0, 10) + '...'
-  // });
+  console.log('Configuration loaded:', {
+    apiBaseUrl: config.apiBaseUrl,
+    websocketUrl: config.websocketUrl,
+    environment: config.environment,
+    logLevel: config.logLevel,
+    enableDebugLogging: config.enableDebugLogging,
+    clerkKeyPrefix: config.clerkPublishableKey.substring(0, 10) + '...'
+  });
 
   return config;
 }

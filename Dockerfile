@@ -19,7 +19,7 @@ RUN pnpm install
 COPY . .
 
 # Expose port
-EXPOSE ${VITE_FRONTEND_PORT:-5173}
+EXPOSE ${VITE_FRONTEND_CONTAINER_PORT:-5173}
 
 # Development command
 CMD ["pnpm", "dev", "--host", "0.0.0.0"]
@@ -69,7 +69,7 @@ COPY --from=production /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose port
-EXPOSE ${VITE_FRONTEND_PORT:-80}
+EXPOSE ${VITE_FRONTEND_CONTAINER_PORT:-80}
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
