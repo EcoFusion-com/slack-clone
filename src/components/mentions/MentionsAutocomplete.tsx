@@ -50,7 +50,7 @@ export function MentionsAutocomplete({
     }
 
     searchUsers()
-  }, [debouncedQuery, isVisible, apiClient])
+  }, [debouncedQuery, isVisible]) // ✅ Removed apiClient from dependencies to prevent infinite loop
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -101,6 +101,8 @@ export function MentionsAutocomplete({
   }, [isVisible, onClose])
 
   if (!isVisible) return null
+
+  console.log('🎯 MentionsAutocomplete rendering:', { isVisible, position, query, users: users.length })
 
   return (
     <div

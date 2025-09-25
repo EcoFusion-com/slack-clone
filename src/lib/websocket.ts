@@ -2,6 +2,7 @@
  * WebSocket client for real-time communication with Clerk authentication
  */
 
+import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { config } from './config';
 
@@ -273,14 +274,28 @@ class WebSocketClient {
   }
 
   private handleMessage(message: WebSocketMessage) {
-    const callbacks = this.eventCallbacks.get(message.type) || [];
-    callbacks.forEach(callback => {
-      try {
-        callback(message as WebSocketEventData);
-      } catch (error) {
-        console.error('Error in WebSocket callback:', error);
-      }
-    });
+    // ✅ Filter events: only propagate critical events that should cause re-renders
+    const criticalEvents = ['new_message', 'ticket_created', 'ticket_updated', 'ticket_status_change'];
+    const isCriticalEvent = criticalEvents.includes(message.type);
+    
+    if (isCriticalEvent) {
+      // ✅ Only call callbacks for critical events
+      const callbacks = this.eventCallbacks.get(message.type) || [];
+      callbacks.forEach(callback => {
+        try {
+          callback(message as WebSocketEventData);
+        } catch (error) {
+          console.error('Error in WebSocket callback:', error);
+        }
+      });
+    } else {
+      // ✅ Log noisy events but don't trigger callbacks to prevent re-renders
+      console.log(`🔇 WebSocket noisy event filtered: ${message.type}`, {
+        type: message.type,
+        dataKeys: Object.keys(message.data || {}),
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   sendMessage(data: SendMessageData['data']) {
@@ -364,8 +379,10 @@ export const wsClient = new WebSocketClient();
 export function useWebSocketClient() {
   const { getToken } = useAuth();
   
-  // Set the authentication method
-  wsClient.setAuth(getToken);
+  // ✅ Only set auth once to prevent re-initialization on every render
+  useEffect(() => {
+    wsClient.setAuth(getToken);
+  }, [getToken]);
   
   return wsClient;
 }

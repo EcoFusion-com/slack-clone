@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { 
   Hash, 
   Lock, 
@@ -88,6 +88,7 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
   const [searchQuery, setSearchQuery] = useState("")
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false) // New state
   
   // Use the workspace hook instead of local state
   const { currentWorkspaceId, isLoading: isLoadingWorkspace } = useWorkspace()
@@ -116,21 +117,33 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
 
   // Load workspaces on mount only when user is authenticated
   useEffect(() => {
-    if (user) {
+    if (user && user.id) { // Enhanced authentication check
+      console.log('👤 User authenticated, loading workspaces...')
       // Add a delay to prevent overwhelming the server with simultaneous requests
       setTimeout(() => {
         loadWorkspaces()
       }, 400)
+    } else {
+      console.log('⏳ Waiting for user authentication...')
     }
-  }, [user])
+  }, [user?.id]) // ✅ Only depend on user ID to prevent infinite loop
 
-  const loadWorkspaces = async () => {
+  const loadWorkspaces = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (isLoadingWorkspaces) {
+      console.log('⏸️ Workspaces already loading, skipping...')
+      return
+    }
+    
     try {
+      console.log('🔄 Loading workspaces...')
+      setIsLoadingWorkspaces(true) // Set loading true
       setIsLoading(true)
       const workspacesData = await apiClient.getWorkspaces()
       setWorkspaces(workspacesData)
+      console.log('✅ Workspaces loaded successfully:', workspacesData.length)
     } catch (error) {
-      console.error('Failed to load workspaces:', error)
+      console.error('❌ Failed to load workspaces:', error)
       toast({
         title: "Error",
         description: "Failed to load workspaces",
@@ -138,8 +151,9 @@ export function SlackSidebar({ selectedChannelId, onChannelSelect, currentView, 
       })
     } finally {
       setIsLoading(false)
+      setIsLoadingWorkspaces(false) // Set loading false
     }
-  }
+  }, [apiClient, toast, isLoadingWorkspaces]) // Added isLoadingWorkspaces to dependencies
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) {

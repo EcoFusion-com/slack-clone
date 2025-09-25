@@ -340,7 +340,7 @@ export function useChat({ workspaceId, channelId }: UseChatOptions): UseChatRetu
       }
       loadDataSequentially()
     }
-  }, [isLoaded, isSignedIn, safeWorkspaceId, loadCurrentUser, loadChannels])
+  }, [isLoaded, isSignedIn, safeWorkspaceId]) // ✅ Removed function dependencies to prevent infinite loops
   
   // Handle channelId prop changes from parent component
   useEffect(() => {

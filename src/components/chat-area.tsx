@@ -37,6 +37,7 @@ import { useChat } from "@/hooks/use-chat"
 import { FileUpload } from "@/components/ui/file-upload"
 import { fileUploadService, type UploadedFileInfo } from "@/lib/file-upload"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { MessageInputWithMentions } from "@/components/mentions/MessageInputWithMentions"
 
 // Message interface is imported from @/lib/api
 
@@ -437,8 +438,6 @@ interface ChatAreaProps {
 }
 
 export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
-  const [message, setMessage] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -488,12 +487,12 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     }
   }
 
-  const handleSendMessage = async () => {
-    if ((!message.trim() && uploadedFiles.length === 0) || isSendingMessage) return
+  const handleSendMessage = async (content: string, mentions?: Array<{ userId: string; username: string; start: number; end: number }>) => {
+    if ((!content.trim() && uploadedFiles.length === 0) || isSendingMessage) return
 
     try {
       // Use the chat hook's sendMessage method (includes optimistic updates)
-      await sendMessage(message.trim(), uploadedFiles.map(file => ({
+      await sendMessage(content.trim(), uploadedFiles.map(file => ({
         filename: file.filename,
         original_filename: file.original_filename,
         file_size: file.file_size,
@@ -504,7 +503,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
         duration: file.duration
       })))
       
-      setMessage("")
       setUploadedFiles([])
       setIsFileDialogOpen(false)
     } catch (error) {
@@ -513,26 +511,6 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
-
-  const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value)
-    
-    // Send typing indicator (if WebSocket is connected)
-    if (isConnected) {
-      if (e.target.value.trim() && !isTyping) {
-        setIsTyping(true)
-        // Note: Typing indicators are handled in the useChat hook
-      } else if (!e.target.value.trim() && isTyping) {
-        setIsTyping(false)
-      }
-    }
-  }
 
   if (isLoadingMessages) {
     return (
@@ -597,56 +575,40 @@ export function ChatArea({ channelId, workspaceId = "1" }: ChatAreaProps) {
             <Plus className="h-4 w-4" />
           </Button>
           
-          <div className="flex-1 relative">
-            <Textarea
-              id="message-input"
-              name="message"
+          <div className="flex-1"> {/* MessageInputWithMentions now takes full width */}
+            <MessageInputWithMentions
+              onSendMessage={handleSendMessage}
               placeholder={`Message #${currentChannel?.name || 'channel'}`}
-              value={message}
-              onChange={handleTyping}
-              onKeyDown={handleKeyPress}
-              className="min-h-[36px] max-h-32 resize-none pr-20 bg-background border-border"
-              rows={1}
               disabled={isSendingMessage}
-              autoComplete="off"
             />
-            
-            <div className="absolute right-2 bottom-2 flex items-center space-x-1">
-              <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
-                <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+          </div>
+          
+          {/* File upload button - positioned outside the input component */}
+          <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 shrink-0">
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
               </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Upload Files</DialogTitle>
-                    <DialogDescription>
-                      Upload files to share in this channel
-                    </DialogDescription>
-                  </DialogHeader>
-                  <FileUpload 
-                    onUpload={handleFileUpload}
-                    maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 10MB
-                    acceptedTypes={['image/*', 'video/*', 'audio/*', 'application/pdf', '.doc', '.docx', '.txt', '.zip', '.rar']}
-                  />
-                </DialogContent>
-              </Dialog>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <Smile className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0"
-                onClick={handleSendMessage}
-                disabled={(!message.trim() && uploadedFiles.length === 0) || isSendingMessage}
-              >
-                <Send className={`h-4 w-4 ${(message.trim() || uploadedFiles.length > 0) && !isSendingMessage ? 'text-primary' : 'text-muted-foreground'}`} />
-              </Button>
-            </div>
-          </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Upload Files</DialogTitle>
+                <DialogDescription>
+                  Upload files to share in this channel
+                </DialogDescription>
+              </DialogHeader>
+              <FileUpload 
+                onUpload={handleFileUpload}
+                maxFiles={5}
+                maxSize={10 * 1024 * 1024} // 10MB
+                acceptedTypes={['image/*', 'video/*', 'audio/*', 'application/pdf', '.doc', '.docx', '.txt', '.zip', '.rar']}
+              />
+            </DialogContent>
+          </Dialog>
+          
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 shrink-0">
+            <Smile className="h-4 w-4 text-muted-foreground" />
+          </Button>
         </div>
 
         {/* Uploaded Files Preview */}

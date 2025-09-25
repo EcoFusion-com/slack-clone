@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useCallback, useMemo } from "react"
 import { 
   X, 
   Edit, 
@@ -36,10 +36,80 @@ interface TicketDetailsProps {
   onUpdate: (ticket: Ticket) => void;
 }
 
-export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps) {
+// Separate component for comment input to prevent re-renders
+interface CommentInputProps {
+  ticketId: string;
+  onCommentAdded: () => void;
+}
+
+const CommentInput = React.memo(({ ticketId, onCommentAdded }: CommentInputProps) => {
   const [newComment, setNewComment] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const { toast } = useToast()
+  const apiClient = useApiClient()
+
+  const handleAddComment = useCallback(async () => {
+    if (!newComment.trim()) return
+
+    try {
+      setIsSubmittingComment(true)
+      
+      const comment = await apiClient.addTicketComment(ticketId, {
+        content: newComment,
+        is_internal: false
+      })
+      
+      setNewComment("") // Clear the input
+      onCommentAdded() // Notify parent to refresh
+      
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added successfully",
+      })
+    } catch (error) {
+      console.error('Failed to add comment:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmittingComment(false)
+    }
+  }, [newComment, ticketId, onCommentAdded, apiClient, toast])
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        id="ticket-comment"
+        name="comment"
+        placeholder="Add a comment..."
+        value={newComment}
+        onChange={(e) => setNewComment(e.target.value)}
+        rows={3}
+        disabled={isSubmittingComment}
+        className="resize-none"
+        autoComplete="off"
+      />
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleAddComment}
+          disabled={!newComment.trim() || isSubmittingComment}
+          size="sm"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          Add Comment
+        </Button>
+      </div>
+    </div>
+  )
+})
+
+CommentInput.displayName = "CommentInput"
+
+export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps) {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [ticketData, setTicketData] = useState(ticket)
   const { user } = useUser()
   const { toast } = useToast()
   const apiClient = useApiClient()
@@ -107,7 +177,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
     })
   }
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = useCallback(async (newStatus: string) => {
     try {
       setIsUpdatingStatus(true)
 
@@ -126,6 +196,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
 
       // Reload the ticket from backend to reflect the latest state
       const refreshed = await apiClient.getTicket(ticket.id)
+      setTicketData(refreshed)
       onUpdate(refreshed)
       toast({
         title: "Status updated",
@@ -141,39 +212,18 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
     } finally {
       setIsUpdatingStatus(false)
     }
-  }
+  }, [ticket.id, apiClient, onUpdate, toast])
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return
-
+  // Handle comment refresh
+  const handleCommentAdded = useCallback(async () => {
     try {
-      setIsSubmittingComment(true)
-      
-      const comment = await apiClient.addTicketComment(ticket.id, {
-        content: newComment,
-        is_internal: false
-      })
-      
-      // Reload the ticket to get updated comments
       const refreshed = await apiClient.getTicket(ticket.id)
+      setTicketData(refreshed)
       onUpdate(refreshed)
-      
-      toast({
-        title: "Comment added",
-        description: "Your comment has been added to the ticket",
-      })
-      setNewComment("")
     } catch (error) {
-      console.error('Failed to add comment:', error)
-      toast({
-        title: "Failed to add comment",
-        description: "Could not add comment to the ticket",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmittingComment(false)
+      console.error('Failed to refresh ticket:', error)
     }
-  }
+  }, [ticket.id, apiClient, onUpdate])
 
   // Custom DialogContent without built-in close button
   const CustomDialogContent = React.forwardRef<
@@ -202,19 +252,19 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <DialogTitle className="text-xl font-bold">{ticket.title}</DialogTitle>
+              <DialogTitle className="text-xl font-bold">{ticketData.title}</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground mt-1">
-                Ticket #{ticket.id} • Created {new Date(ticket.created_at).toLocaleDateString()}
+                Ticket #{ticketData.id} • Created {new Date(ticketData.created_at).toLocaleDateString()}
               </DialogDescription>
               <div className="flex items-center space-x-2 mt-2">
-                <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-                  {getStatusIcon(ticket.status)}
-                  <span className="ml-1 capitalize">{ticket.status.replace('_', ' ')}</span>
+                <Badge className={`text-xs ${getStatusColor(ticketData.status)}`}>
+                  {getStatusIcon(ticketData.status)}
+                  <span className="ml-1 capitalize">{ticketData.status.replace('_', ' ')}</span>
                 </Badge>
-                <Badge className={`text-xs ${getPriorityColor(ticket.priority)}`}>
-                  {ticket.priority.toUpperCase()}
+                <Badge className={`text-xs ${getPriorityColor(ticketData.priority)}`}>
+                  {ticketData.priority.toUpperCase()}
                 </Badge>
-                {ticket.is_overdue && (
+                {ticketData.is_overdue && (
                   <Badge className="text-xs bg-red-100 text-red-800 border-red-200">
                     OVERDUE
                   </Badge>
@@ -223,7 +273,7 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
             </div>
             <div className="flex items-center space-x-2">
               <Select
-                value={ticket.status}
+                value={ticketData.status}
                 onValueChange={handleStatusUpdate}
                 disabled={isUpdatingStatus}
               >
@@ -249,21 +299,21 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
         <div className="flex-1 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6 overflow-y-auto pr-2">
+            <div className="lg:col-span-2 space-y-6 overflow-y-auto pr-2 max-h-[60vh]">
               {/* Description */}
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
+                  <p className="text-sm whitespace-pre-wrap">{ticketData.description}</p>
                 </div>
               </div>
 
               {/* Attachments */}
-              {safeLength(ticket.attachments) > 0 && (
+              {safeLength(ticketData.attachments) > 0 && (
                 <div>
                   <h3 className="font-semibold mb-2">Attachments</h3>
                   <div className="space-y-2">
-                    {safeArray.map(ticket.attachments, (attachment: any) => (
+                    {safeArray.map(ticketData.attachments, (attachment: any) => (
                       <div key={attachment.id} className="flex items-center space-x-2 p-2 bg-muted/50 rounded">
                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium truncate">{attachment.original_filename}</span>
@@ -276,15 +326,15 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
 
               {/* Comments */}
               <div className="space-y-4">
-                <h3 className="font-semibold">Comments ({safeLength(ticket.comments)})</h3>
+                <h3 className="font-semibold">Comments ({safeLength(ticketData.comments)})</h3>
                 <div className="border rounded-lg p-4 max-h-80 overflow-y-auto">
                   <div className="space-y-4">
-                    {safeLength(ticket.comments) === 0 ? (
+                    {safeLength(ticketData.comments) === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No comments yet. Be the first to comment!
                       </p>
                     ) : (
-                      safeArray.map(ticket.comments, (comment: any) => (
+                      safeArray.map(ticketData.comments, (comment: any) => (
                         <div key={comment.id} className="flex space-x-3">
                           <Avatar className="h-8 w-8 shrink-0">
                             <AvatarImage src={comment.user_avatar} />
@@ -313,29 +363,10 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                 </div>
 
                 {/* Add Comment */}
-                <div className="space-y-2">
-                  <Textarea
-                    id="ticket-comment"
-                    name="comment"
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    rows={3}
-                    disabled={isSubmittingComment}
-                    className="resize-none"
-                    autoComplete="off"
-                  />
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim() || isSubmittingComment}
-                      size="sm"
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Add Comment
-                    </Button>
-                  </div>
-                </div>
+                <CommentInput 
+                  ticketId={ticket.id} 
+                  onCommentAdded={handleCommentAdded} 
+                />
               </div>
             </div>
 
@@ -348,51 +379,51 @@ export function TicketDetails({ ticket, onClose, onUpdate }: TicketDetailsProps)
                   <div className="flex items-center space-x-2 text-sm">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Created by:</span>
-                    <span className="font-medium">{ticket.creator_name}</span>
+                    <span className="font-medium">{ticketData.creator_name}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Created:</span>
-                    <span className="font-medium">{formatDate(ticket.created_at)}</span>
+                    <span className="font-medium">{formatDate(ticketData.created_at)}</span>
                   </div>
-                  {ticket.due_date && (
+                  {ticketData.due_date && (
                     <div className="flex items-center space-x-2 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Due:</span>
-                      <span className={`font-medium ${ticket.is_overdue ? 'text-red-600' : ''}`}>
-                        {formatDate(ticket.due_date)}
+                      <span className={`font-medium ${ticketData.is_overdue ? 'text-red-600' : ''}`}>
+                        {formatDate(ticketData.due_date)}
                       </span>
                     </div>
                   )}
-                  {ticket.assigned_to && (
+                  {ticketData.assigned_to && (
                     <div className="flex items-center space-x-2 text-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Assigned to:</span>
-                      <span className="font-medium">{ticket.assignee_name}</span>
+                      <span className="font-medium">{ticketData.assignee_name}</span>
                     </div>
                   )}
-                  {ticket.category && (
+                  {ticketData.category && (
                     <div className="flex items-center space-x-2 text-sm">
                       <span className="text-muted-foreground">Category:</span>
-                      <span className="font-medium">{ticket.category}</span>
+                      <span className="font-medium">{ticketData.category}</span>
                     </div>
                   )}
-                  {ticket.tags && (
+                  {ticketData.tags && (
                     <div className="flex items-center space-x-2 text-sm">
                       <span className="text-muted-foreground">Tags:</span>
-                      <span className="font-medium">{ticket.tags}</span>
+                      <span className="font-medium">{ticketData.tags}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* History */}
-              {safeLength(ticket.history) > 0 && (
+              {safeLength(ticketData.history) > 0 && (
                 <div>
                   <h3 className="font-semibold mb-3">History</h3>
                   <ScrollArea className="h-48">
                     <div className="space-y-3">
-                      {safeArray.map(ticket.history, (entry: any) => (
+                      {safeArray.map(ticketData.history, (entry: any) => (
                         <div key={entry.id} className="text-sm">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium">{entry.user_name || 'System'}</span>

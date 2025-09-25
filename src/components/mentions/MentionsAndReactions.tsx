@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useApiClient, type Message } from "@/lib/api"
 import { useUser } from "@clerk/clerk-react"
 import { useToast } from "@/hooks/use-toast"
+import { useWebSocketClient } from "@/lib/websocket"
 
 interface Mention {
   id: string
@@ -55,10 +56,63 @@ export function MentionsAndReactions() {
   const { user } = useUser()
   const { toast } = useToast()
   const apiClient = useApiClient()
+  const wsClient = useWebSocketClient()
 
   useEffect(() => {
     loadMentionsAndReactions()
   }, [])
+
+  // WebSocket event handlers for real-time updates
+  useEffect(() => {
+    // ✅ BACKGROUND EVENT: mention_created - only show toast, no state update
+    const handleMentionCreated = (data: any) => {
+      if (data.type === 'mention_created') {
+        // ✅ Only show toast notification - no state update to prevent re-render
+        toast({
+          title: "You were mentioned!",
+          description: `Someone mentioned you in a message`,
+        })
+        
+        // ✅ Log the event but don't update state to prevent re-render
+        console.log('🔔 Mention event received (no state update):', {
+          mentionId: data.data.mention_id,
+          messageId: data.data.message_id,
+          authorId: data.data.author_id,
+          channelId: data.data.channel_id,
+          timestamp: new Date().toISOString()
+        })
+      }
+    }
+
+    // ✅ BACKGROUND EVENT: notification - only show toast, no state update
+    const handleNotification = (data: any) => {
+      if (data.type === 'notification') {
+        // ✅ Only show notification toast - no state update to prevent re-render
+        toast({
+          title: data.data.title,
+          description: data.data.message,
+          variant: "default"
+        })
+        
+        // ✅ Log the event but don't update state to prevent re-render
+        console.log('🔔 Notification event received (no state update):', {
+          id: data.data.id,
+          type: data.data.type,
+          title: data.data.title,
+          timestamp: new Date().toISOString()
+        })
+      }
+    }
+
+    // Set up event listeners
+    wsClient.on('mention_created', handleMentionCreated)
+    wsClient.on('notification', handleNotification)
+
+    return () => {
+      wsClient.off('mention_created', handleMentionCreated)
+      wsClient.off('notification', handleNotification)
+    }
+  }, [wsClient, toast])
 
   const loadMentionsAndReactions = async () => {
     try {

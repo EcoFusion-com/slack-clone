@@ -33,3 +33,4 @@ dist-ssr
 /.storybook-out
 /public/
 .env
+.env.*
